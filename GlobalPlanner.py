@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.patches import Circle
 
+from matplotlib.animation import FuncAnimation
+
 import random
 
 CAVE_WIDTH = 20
@@ -9,6 +11,7 @@ CAVE_DEPTH = 40
 
 CURRENT_MAX_WIDTH = 5
 CURRENT_MAX_HEIGHT = 5
+
 
 # TODO : 좁은 틈 (CURRENT MIN HEIGHT)을 알면 potential point 만들 때 좁은 틈에 있는 2개 지우고, 좀 더 밖에 1개로 대체 가능
 
@@ -22,10 +25,6 @@ class Object:
 
     def __str__(self):
         return f"Object {self.name} : ({self.width}, {self.height})"
-
-
-def object_generator(name, max_width, max_height):
-    return Object(name, random.randint(1, max_width), random.randint(1, max_height))
 
 
 def sum_accumulated_width(surface):
@@ -58,6 +57,8 @@ class StateRepresentor:
         self.ax.set_xlabel('X-axis')
         self.ax.set_ylabel('Y-axis')
         self.ax.set_title('Cave')
+
+        self.object_counter = 0
 
     def draw_rectangle(self, name, x, y, width, height):
         rectangle = Rectangle((x, y), width, height, edgecolor='black', facecolor='none')
@@ -92,6 +93,9 @@ class GlobalPlanner:
 
         self.generate_potential_points()
 
+    def object_generator(self, name, max_width, max_height):
+        return Object(name, random.randint(1, max_width), random.randint(1, max_height))
+
     def generate_potential_points(self):
 
         left_potential_points = []
@@ -99,7 +103,6 @@ class GlobalPlanner:
 
         # generate left potential points
         for idx in range(len(self.left_surface_list)):
-
             x = sum_accumulated_width(self.left_surface_list[idx][0])
             lower_y = self.left_surface_list[idx][1]
             higher_y = self.left_surface_list[idx][2]
@@ -123,7 +126,6 @@ class GlobalPlanner:
 
         # generate right potential points
         for idx in range(len(self.right_surface_list)):
-
             x = CAVE_WIDTH - sum_accumulated_width(self.right_surface_list[idx][0])
             lower_y = self.right_surface_list[idx][1]
             higher_y = self.right_surface_list[idx][2]
@@ -221,7 +223,6 @@ class GlobalPlanner:
             if distance_left[1] > 0 and distance_left[2] > 0 and distance_left[1] - CURRENT_MAX_WIDTH > 0:
                 distance_left_list.append(distance_left)
 
-
         if distance_left_list:
             current_nearest = distance_left_list[0][0]
             for compare in distance_left_list:
@@ -232,7 +233,6 @@ class GlobalPlanner:
         else:
             current_nearest = None
             print("There is no point which can be packed")
-
 
         return current_nearest
 
@@ -288,15 +288,13 @@ class PotentialPoint:
                     # if (y_level + target_obj.height >= right_surface_list[idx][1]) \
                     #         and (right_surface_list[idx][1] >= y_level):
                     if (y_level + CURRENT_MAX_HEIGHT >= right_surface_list[idx][1]) \
-                                    and (right_surface_list[idx][1] >= y_level):
-
+                            and (right_surface_list[idx][1] >= y_level):
                         self.counter_obj.append(right_surface_list[idx][0])
                 elif self.lower_or_higher == 'HIGHER':
                     # if (y_level - target_obj.height <= right_surface_list[idx][2]) \
                     #         and (right_surface_list[idx][2] <= y_level):
                     if (y_level - CURRENT_MAX_HEIGHT <= right_surface_list[idx][2]) \
                             and (right_surface_list[idx][2] <= y_level):
-
                         self.counter_obj.append(right_surface_list[idx][0])
 
             current_max_width = sum_accumulated_width(self.counter_obj[0])
@@ -304,7 +302,6 @@ class PotentialPoint:
                 comparison_value = sum_accumulated_width(comparison)
                 if comparison_value > current_max_width:
                     current_max_width = comparison_value
-
 
             free_width = CAVE_WIDTH - self.x - current_max_width
 
@@ -330,14 +327,12 @@ class PotentialPoint:
                     #         and (left_surface_list[idx][1] >= y_level):
                     if (y_level + CURRENT_MAX_HEIGHT >= left_surface_list[idx][1]) \
                             and (left_surface_list[idx][1] >= y_level):
-
                         self.counter_obj.append(left_surface_list[idx][0])
                 elif self.lower_or_higher == 'HIGHER':
                     # if (y_level - target_obj.height <= left_surface_list[idx][2]) \
                     #         and (left_surface_list[idx][2] <= y_level):
                     if (y_level - CURRENT_MAX_HEIGHT <= left_surface_list[idx][2]) \
                             and (left_surface_list[idx][2] <= y_level):
-
                         self.counter_obj.append(left_surface_list[idx][0])
 
             current_max_width = sum_accumulated_width(self.counter_obj[0])
@@ -362,21 +357,36 @@ class PotentialPoint:
 
 
 def main():
-    global_panner = GlobalPlanner()
+    plt.ion()
+    global_planner = GlobalPlanner()
+    stop_animation = False
 
-    for idx in range(1, 100):
+    def on_key(event):
+        global stop_animation
+        if event.key == 'q':
+            stop_animation = True
 
-        obj = object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
-        result = global_panner.packing_algorithm(obj)
+    plt.connect('key_press_event', on_key)
+
+    idx = 1
+
+    while not stop_animation:
+        obj = global_planner.object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
+        result = global_planner.packing_algorithm(obj)
 
         if result == 'Fail':
+            global_planner.state_representor.draw_potential_points(global_planner.potential_points)
             print('Successfully packed ', idx-1, ' objects')
             print('Cannot packing', obj)
             print('Cave searching will be operated')
             break
 
-    global_panner.state_representor.draw_potential_points(global_panner.potential_points)
+        idx += 1
 
+        plt.draw()
+        plt.pause(0.2)
+
+    plt.ioff()
     plt.show()
 
 
