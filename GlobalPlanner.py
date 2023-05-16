@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.patches import Circle
 
+from matplotlib.animation import FuncAnimation
+
 import random
 
 CAVE_WIDTH = 20
