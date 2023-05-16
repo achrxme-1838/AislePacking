@@ -11,6 +11,7 @@ CURRENT_MAX_WIDTH = 5
 CURRENT_MAX_HEIGHT = 5
 
 # TODO : 좁은 틈 (CURRENT MIN HEIGHT)을 알면 potential point 만들 때 좁은 틈에 있는 2개 지우고, 좀 더 밖에 1개로 대체 가능
+print('final test')
 
 class Object:
     def __init__(self, name, width, height):
