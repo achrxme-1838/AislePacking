@@ -10,8 +10,10 @@ CAVE_DEPTH = 40
 CURRENT_MAX_WIDTH = 5
 CURRENT_MAX_HEIGHT = 5
 
+CURRENT_MIN_WIDTH = 2
+CURRENT_MIN_HEIGHT = 2
+
 # TODO : 좁은 틈 (CURRENT MIN HEIGHT)을 알면 potential point 만들 때 좁은 틈에 있는 2개 지우고, 좀 더 밖에 1개로 대체 가능
-print('final test')
 
 class Object:
     def __init__(self, name, width, height):
@@ -92,7 +94,8 @@ class GlobalPlanner:
         self.generate_potential_points()
 
     def object_generator(self, name, max_width, max_height):
-        return Object(name, random.randint(1, max_width), random.randint(1, max_height))
+        return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
+                      random.randint(CURRENT_MIN_HEIGHT, max_height))
 
     def generate_potential_points(self):
 
@@ -189,7 +192,6 @@ class GlobalPlanner:
 
     def placing(self, target_obj, target_point):
 
-        # TODO : it should be replaced to order for agent
         if left_or_right_judge(target_obj) == 'LEFT_WALL':
             if target_point.lower_or_higher == 'LOWER':
                 self.state_representor.draw_rectangle(
@@ -283,14 +285,10 @@ class PotentialPoint:
                     self.counter_obj.append(right_surface_list[idx + 1][0])
 
                 elif self.lower_or_higher == 'LOWER':
-                    # if (y_level + target_obj.height >= right_surface_list[idx][1]) \
-                    #         and (right_surface_list[idx][1] >= y_level):
                     if (y_level + CURRENT_MAX_HEIGHT >= right_surface_list[idx][1]) \
                             and (right_surface_list[idx][1] >= y_level):
                         self.counter_obj.append(right_surface_list[idx][0])
                 elif self.lower_or_higher == 'HIGHER':
-                    # if (y_level - target_obj.height <= right_surface_list[idx][2]) \
-                    #         and (right_surface_list[idx][2] <= y_level):
                     if (y_level - CURRENT_MAX_HEIGHT <= right_surface_list[idx][2]) \
                             and (right_surface_list[idx][2] <= y_level):
                         self.counter_obj.append(right_surface_list[idx][0])
@@ -321,14 +319,10 @@ class PotentialPoint:
                     self.counter_obj.append(left_surface_list[idx + 1][0])
 
                 elif self.lower_or_higher == 'LOWER':
-                    # if (y_level + target_obj.height >= left_surface_list[idx][1]) \
-                    #         and (left_surface_list[idx][1] >= y_level):
                     if (y_level + CURRENT_MAX_HEIGHT >= left_surface_list[idx][1]) \
                             and (left_surface_list[idx][1] >= y_level):
                         self.counter_obj.append(left_surface_list[idx][0])
                 elif self.lower_or_higher == 'HIGHER':
-                    # if (y_level - target_obj.height <= left_surface_list[idx][2]) \
-                    #         and (left_surface_list[idx][2] <= y_level):
                     if (y_level - CURRENT_MAX_HEIGHT <= left_surface_list[idx][2]) \
                             and (left_surface_list[idx][2] <= y_level):
                         self.counter_obj.append(left_surface_list[idx][0])
@@ -382,7 +376,7 @@ def main():
         idx += 1
 
         plt.draw()
-        plt.pause(0.2)
+        plt.pause(0.4)
 
     plt.ioff()
     plt.show()
