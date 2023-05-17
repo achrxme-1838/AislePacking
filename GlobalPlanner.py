@@ -27,13 +27,13 @@ class Object:
         return f"Object {self.name} : ({self.width}, {self.height})"
 
 
-def sum_accumulated_width(surface):
+def sum_accumulated_width(surface_obj):
     accumulated_width = 0
-    current = surface
-    if current is not None:
-        while current.covered_obj is not None:
-            accumulated_width += current.width
-            current = current.covered_obj
+    current_obj = surface_obj
+    if current_obj is not None:
+        while current_obj.covered_obj is not None:
+            accumulated_width += current_obj.width
+            current_obj = current_obj.covered_obj
 
     return accumulated_width
 
@@ -77,6 +77,17 @@ class StateRepresentor:
             self.ax.add_patch(circle)
 
 
+class Surface:
+    def __init__(self, surface_object, lower_bound, upper_bound):
+        self.surface_object = surface_object
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
+
+        print(self.lower_bound, self.upper_bound)
+
+
+
+
 class GlobalPlanner:
     def __init__(self):
 
@@ -86,17 +97,52 @@ class GlobalPlanner:
         self.right_wall = Object('RIGHT_WALL', 0, CAVE_DEPTH)
         self.base_line = Object('BASE_LINE', CAVE_WIDTH, 0)
 
-        self.left_surface_list = [(self.left_wall, 0, CAVE_DEPTH)]
-        self.right_surface_list = [(self.right_wall, 0, CAVE_DEPTH)]
+        # self.left_surface_list = [(self.left_wall, 0, CAVE_DEPTH)]
+        # self.right_surface_list = [(self.right_wall, 0, CAVE_DEPTH)]
+        self.left_surface_list = [Surface(self.left_wall, 0, CAVE_DEPTH)]
+        self.right_surface_list = [Surface(self.right_wall, 0, CAVE_DEPTH)]
 
         self.potential_points = []
 
         self.generate_potential_points()
 
+    # Update surface list when placing target_obj at the target_point
+    def update_surface_list(self, target_obj, target_point):
+
+        if left_or_right_judge(target_obj) == 'LEFT_WALL':
+            surface_list = self.left_surface_list[:]
+        else:
+            surface_list = self.right_surface_list[:]
+
+        if target_point.lower_or_higher == 'LOWER':
+            # Add new surface
+            surface_list.append(Surface(target_obj, target_point.y, target_point.y + target_obj.height))
+            for surface in surface_list:
+                # change the lower bound of surface covered by target object
+                if surface.surface_object == target_point.covered_obj:
+                    surface.lower_bound = target_point.y + target_obj.height
+        elif target_point.lower_or_higher == 'HIGHER':
+            # Add new surface
+            surface_list.append(Surface(target_obj, target_point.y - target_obj.height, target_point.y))
+            for surface in surface_list:
+                # change the upper bound of surface covered by target object
+                if surface.surface_object == target_point.covered_obj:
+                    surface.upper_bound = target_point.y - target_obj.height
+
+
+        surface_list.sort(key=lambda x_: x_.lower_bound)
+
+        if left_or_right_judge(target_obj) == 'LEFT_WALL':
+            self.left_surface_list = surface_list[:]
+        else:
+            self.right_surface_list = surface_list[:]
+
     def object_generator(self, name, max_width, max_height):
         return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
                       random.randint(CURRENT_MIN_HEIGHT, max_height))
 
+    # TODO
+    # for i, fruit in enumerate(my_list): ???
     def generate_potential_points(self):
 
         left_potential_points = []
@@ -104,14 +150,14 @@ class GlobalPlanner:
 
         # generate left potential points
         for idx in range(len(self.left_surface_list)):
-            x = sum_accumulated_width(self.left_surface_list[idx][0])
-            lower_y = self.left_surface_list[idx][1]
-            higher_y = self.left_surface_list[idx][2]
+            x = sum_accumulated_width(self.left_surface_list[idx].surface_object)
+            lower_y = self.left_surface_list[idx].lower_bound
+            higher_y = self.left_surface_list[idx].upper_bound
 
             left_potential_points.append(
-                PotentialPoint(x, lower_y, self.left_surface_list[idx][0], 'LOWER'))
+                PotentialPoint(x, lower_y, self.left_surface_list[idx].surface_object, 'LOWER'))
             left_potential_points.append(
-                PotentialPoint(x, higher_y, self.left_surface_list[idx][0], 'HIGHER'))
+                PotentialPoint(x, higher_y, self.left_surface_list[idx].surface_object, 'HIGHER'))
 
         for point in left_potential_points:
             value_for_removing = point.y
@@ -127,14 +173,14 @@ class GlobalPlanner:
 
         # generate right potential points
         for idx in range(len(self.right_surface_list)):
-            x = CAVE_WIDTH - sum_accumulated_width(self.right_surface_list[idx][0])
-            lower_y = self.right_surface_list[idx][1]
-            higher_y = self.right_surface_list[idx][2]
+            x = CAVE_WIDTH - sum_accumulated_width(self.right_surface_list[idx].surface_object)
+            lower_y = self.right_surface_list[idx].lower_bound
+            higher_y = self.right_surface_list[idx].upper_bound
 
             right_potential_points.append(
-                PotentialPoint(x, lower_y, self.right_surface_list[idx][0], 'LOWER'))
+                PotentialPoint(x, lower_y, self.right_surface_list[idx].surface_object, 'LOWER'))
             right_potential_points.append(
-                PotentialPoint(x, higher_y, self.right_surface_list[idx][0], 'HIGHER'))
+                PotentialPoint(x, higher_y, self.right_surface_list[idx].surface_object, 'HIGHER'))
 
         for point in right_potential_points:
             value_for_removing = point.y
@@ -149,7 +195,7 @@ class GlobalPlanner:
         right_potential_points.pop()
 
         # merge left and right
-        merged_potential_points = left_potential_points + right_potential_points
+        merged_potential_points = left_potential_points[:] + right_potential_points[:]
 
         # delete duplicate points
         for point in merged_potential_points:
@@ -159,36 +205,6 @@ class GlobalPlanner:
                     merged_potential_points.remove(compare)
 
         self.potential_points = merged_potential_points[:]
-
-    def update_surface_list(self, target_obj, target_point):
-
-        if left_or_right_judge(target_obj) == 'LEFT_WALL':
-            surface_list = self.left_surface_list
-        else:
-            surface_list = self.right_surface_list
-
-        if target_point.lower_or_higher == 'LOWER':
-            surface_list.append((target_obj, target_point.y, target_point.y + target_obj.height))
-
-            for surface in surface_list:
-                if surface[0].name == target_obj.covered_obj.name:
-                    surface_list.remove(surface)
-                    if (target_point.y + target_obj.height) != surface[2]:
-                        surface_list.append(
-                            (surface[0], target_point.y + target_obj.height, surface[2]))
-
-        elif target_point.lower_or_higher == 'HIGHER':
-            surface_list.append((target_obj, target_point.y - target_obj.height, target_point.y))
-
-            for surface in surface_list:
-                if surface[0].name == target_obj.covered_obj.name:
-                    surface_list.remove(surface)
-                    if surface[1] != (target_point.y - target_obj.height):
-                        surface_list.append(
-                            (surface[0], surface[1], target_point.y - target_obj.height))
-
-        self.left_surface_list.sort(key=lambda x_: x_[1])
-        self.right_surface_list.sort(key=lambda x_: x_[1])
 
     def placing(self, target_obj, target_point):
 
@@ -243,8 +259,11 @@ class GlobalPlanner:
         if target_point is None:
             return 'Fail'
 
+        # Placing the object(drawing)
         self.placing(target_obj, target_point)
+        # Update the surface list if we place the target_obj at the target_point
         self.update_surface_list(target_obj, target_point)
+        # Generate potential point using updated surface list
         self.generate_potential_points()
 
         return 'Success'
@@ -262,7 +281,7 @@ class PotentialPoint:
 
         self.counter_obj = []
 
-    # calculate left_distance if we place target at that specific point
+    # calculate left_distance after we place target at that specific point
     def distance_left_calculator(self, target_obj, left_surface_list, right_surface_list):
 
         free_width = 0
@@ -275,23 +294,23 @@ class PotentialPoint:
 
             # find counter
             for idx in range(len(right_surface_list)):
-                if (y_level > right_surface_list[idx][1]) and (y_level < right_surface_list[idx][2]):
-                    self.counter_obj.append(right_surface_list[idx][0])
-                elif y_level == right_surface_list[idx][1]:
-                    self.counter_obj.append(right_surface_list[idx][0])
-                    self.counter_obj.append(right_surface_list[idx - 1][0])
-                elif y_level == right_surface_list[idx][2]:
-                    self.counter_obj.append(right_surface_list[idx][0])
-                    self.counter_obj.append(right_surface_list[idx + 1][0])
+                if (y_level > right_surface_list[idx].lower_bound) and (y_level < right_surface_list[idx].upper_bound):
+                    self.counter_obj.append(right_surface_list[idx].surface_object)
+                elif y_level == right_surface_list[idx].lower_bound:
+                    self.counter_obj.append(right_surface_list[idx].surface_object)
+                    self.counter_obj.append(right_surface_list[idx - 1].surface_object)
+                elif y_level == right_surface_list[idx].upper_bound:
+                    self.counter_obj.append(right_surface_list[idx].surface_object)
+                    self.counter_obj.append(right_surface_list[idx + 1].surface_object)
 
                 elif self.lower_or_higher == 'LOWER':
-                    if (y_level + CURRENT_MAX_HEIGHT >= right_surface_list[idx][1]) \
-                            and (right_surface_list[idx][1] >= y_level):
-                        self.counter_obj.append(right_surface_list[idx][0])
+                    if (y_level + CURRENT_MAX_HEIGHT >= right_surface_list[idx].lower_bound) \
+                            and (right_surface_list[idx].lower_bound >= y_level):
+                        self.counter_obj.append(right_surface_list[idx].surface_object)
                 elif self.lower_or_higher == 'HIGHER':
-                    if (y_level - CURRENT_MAX_HEIGHT <= right_surface_list[idx][2]) \
-                            and (right_surface_list[idx][2] <= y_level):
-                        self.counter_obj.append(right_surface_list[idx][0])
+                    if (y_level - CURRENT_MAX_HEIGHT <= right_surface_list[idx].upper_bound) \
+                            and (right_surface_list[idx].upper_bound <= y_level):
+                        self.counter_obj.append(right_surface_list[idx].surface_object)
 
             current_max_width = sum_accumulated_width(self.counter_obj[0])
             for comparison in self.counter_obj:
@@ -303,29 +322,29 @@ class PotentialPoint:
 
             # calculate free_height for self(potential point)
             for surface in left_surface_list:
-                if self.covered_obj == surface[0]:
-                    free_height = surface[2] - surface[1]
+                if self.covered_obj == surface.surface_object:
+                    free_height = surface.upper_bound - surface.lower_bound
 
         elif left_or_right_judge(self.covered_obj) == 'RIGHT_WALL':
 
             for idx in range(len(left_surface_list)):
-                if (y_level > left_surface_list[idx][1]) and (y_level < left_surface_list[idx][2]):
-                    self.counter_obj.append(left_surface_list[idx][0])
-                elif y_level == left_surface_list[idx][1]:
-                    self.counter_obj.append(left_surface_list[idx][0])
-                    self.counter_obj.append(left_surface_list[idx - 1][0])
-                elif y_level == left_surface_list[idx][2]:
-                    self.counter_obj.append(left_surface_list[idx][0])
-                    self.counter_obj.append(left_surface_list[idx + 1][0])
+                if (y_level > left_surface_list[idx].lower_bound) and (y_level < left_surface_list[idx].upper_bound):
+                    self.counter_obj.append(left_surface_list[idx].surface_object)
+                elif y_level == left_surface_list[idx].lower_bound:
+                    self.counter_obj.append(left_surface_list[idx].surface_object)
+                    self.counter_obj.append(left_surface_list[idx - 1].surface_object)
+                elif y_level == left_surface_list[idx].upper_bound:
+                    self.counter_obj.append(left_surface_list[idx].surface_object)
+                    self.counter_obj.append(left_surface_list[idx + 1].surface_object)
 
                 elif self.lower_or_higher == 'LOWER':
-                    if (y_level + CURRENT_MAX_HEIGHT >= left_surface_list[idx][1]) \
-                            and (left_surface_list[idx][1] >= y_level):
-                        self.counter_obj.append(left_surface_list[idx][0])
+                    if (y_level + CURRENT_MAX_HEIGHT >= left_surface_list[idx].lower_bound) \
+                            and (left_surface_list[idx].lower_bound >= y_level):
+                        self.counter_obj.append(left_surface_list[idx].surface_object)
                 elif self.lower_or_higher == 'HIGHER':
-                    if (y_level - CURRENT_MAX_HEIGHT <= left_surface_list[idx][2]) \
-                            and (left_surface_list[idx][2] <= y_level):
-                        self.counter_obj.append(left_surface_list[idx][0])
+                    if (y_level - CURRENT_MAX_HEIGHT <= left_surface_list[idx].upper_bound) \
+                            and (left_surface_list[idx].upper_bound <= y_level):
+                        self.counter_obj.append(left_surface_list[idx].surface_object)
 
             current_max_width = sum_accumulated_width(self.counter_obj[0])
             for comparison in self.counter_obj:
@@ -336,8 +355,8 @@ class PotentialPoint:
             free_width = self.x - current_max_width
 
             for surface in right_surface_list:
-                if self.covered_obj == surface[0]:
-                    free_height = surface[2] - surface[1]
+                if self.covered_obj == surface.surface_object:
+                    free_height = surface.upper_bound - surface.lower_bound
 
         self.width_left = free_width - target_obj.width
         self.height_left = free_height - target_obj.height
@@ -381,6 +400,17 @@ def main():
     plt.ioff()
     plt.show()
 
+    # global_planner = GlobalPlanner()
+    # ob1 = Object(1, 5, 5)
+    # ob2 = Object(2, 2, 4)
+    # ob3 = Object(3, 3, 10)
+    # global_planner.packing_algorithm(ob1)
+    # global_planner.packing_algorithm(ob2)
+    # global_planner.packing_algorithm(ob3)
+    #
+    # global_planner.state_representor.draw_potential_points(global_planner.potential_points)
+    #
+    # plt.show()
 
 if __name__ == "__main__":
     main()
