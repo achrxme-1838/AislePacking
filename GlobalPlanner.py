@@ -4,8 +4,8 @@ from matplotlib.patches import Circle
 
 import random
 
-CAVE_WIDTH = 20
-CAVE_DEPTH = 40
+AISLE_WIDTH = 20
+AISLE_DEPTH = 40
 
 CURRENT_MAX_WIDTH = 5
 CURRENT_MAX_HEIGHT = 5
@@ -56,7 +56,7 @@ class StateRepresentor:
         self.ax.set_aspect('equal')
         self.ax.set_xlabel('X-axis')
         self.ax.set_ylabel('Y-axis')
-        self.ax.set_title('Cave')
+        self.ax.set_title('AISLE')
 
         self.object_counter = 0
 
@@ -83,24 +83,23 @@ class Surface:
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
 
-        print(self.lower_bound, self.upper_bound)
-
-
-
+        # print(self.lower_bound, self.upper_bound)
+    def __str__(self):
+        return f"Surface {self.surface_object} : ({self.lower_bound}, {self.upper_bound})"
 
 class GlobalPlanner:
     def __init__(self):
 
-        self.state_representor = StateRepresentor(CAVE_WIDTH, CAVE_DEPTH)
+        self.state_representor = StateRepresentor(AISLE_WIDTH, AISLE_DEPTH)
 
-        self.left_wall = Object('LEFT_WALL', 0, CAVE_DEPTH)
-        self.right_wall = Object('RIGHT_WALL', 0, CAVE_DEPTH)
-        self.base_line = Object('BASE_LINE', CAVE_WIDTH, 0)
+        self.left_wall = Object('LEFT_WALL', 0, AISLE_DEPTH)
+        self.right_wall = Object('RIGHT_WALL', 0, AISLE_DEPTH)
+        self.base_line = Object('BASE_LINE', AISLE_WIDTH, 0)
 
-        # self.left_surface_list = [(self.left_wall, 0, CAVE_DEPTH)]
-        # self.right_surface_list = [(self.right_wall, 0, CAVE_DEPTH)]
-        self.left_surface_list = [Surface(self.left_wall, 0, CAVE_DEPTH)]
-        self.right_surface_list = [Surface(self.right_wall, 0, CAVE_DEPTH)]
+        # self.left_surface_list = [(self.left_wall, 0, AISLE_DEPTH)]
+        # self.right_surface_list = [(self.right_wall, 0, AISLE_DEPTH)]
+        self.left_surface_list = [Surface(self.left_wall, 0, AISLE_DEPTH)]
+        self.right_surface_list = [Surface(self.right_wall, 0, AISLE_DEPTH)]
 
         self.potential_points = []
 
@@ -121,6 +120,7 @@ class GlobalPlanner:
                 # change the lower bound of surface covered by target object
                 if surface.surface_object == target_point.covered_obj:
                     surface.lower_bound = target_point.y + target_obj.height
+
         elif target_point.lower_or_higher == 'HIGHER':
             # Add new surface
             surface_list.append(Surface(target_obj, target_point.y - target_obj.height, target_point.y))
@@ -129,6 +129,12 @@ class GlobalPlanner:
                 if surface.surface_object == target_point.covered_obj:
                     surface.upper_bound = target_point.y - target_obj.height
 
+        # delete fully covered surface
+        copied_surface_list = surface_list[:]
+        surface_list.clear()
+        for surface in copied_surface_list:
+            if surface.lower_bound != surface.upper_bound:
+                surface_list.append(surface)
 
         surface_list.sort(key=lambda x_: x_.lower_bound)
 
@@ -143,68 +149,86 @@ class GlobalPlanner:
 
     # TODO
     # for i, fruit in enumerate(my_list): ???
+
     def generate_potential_points(self):
 
         left_potential_points = []
         right_potential_points = []
 
-        # generate left potential points
-        for idx in range(len(self.left_surface_list)):
-            x = sum_accumulated_width(self.left_surface_list[idx].surface_object)
-            lower_y = self.left_surface_list[idx].lower_bound
-            higher_y = self.left_surface_list[idx].upper_bound
-
+        # generate potential points
+        for surface in self.left_surface_list:
+            x = sum_accumulated_width(surface.surface_object)
             left_potential_points.append(
-                PotentialPoint(x, lower_y, self.left_surface_list[idx].surface_object, 'LOWER'))
+                PotentialPoint(x, surface.lower_bound, surface.surface_object, 'LOWER')
+            )
             left_potential_points.append(
-                PotentialPoint(x, higher_y, self.left_surface_list[idx].surface_object, 'HIGHER'))
+                PotentialPoint(x, surface.upper_bound, surface.surface_object, 'HIGHER')
+            )
 
-        for point in left_potential_points:
-            value_for_removing = point.y
-            for compare in left_potential_points:
-                if compare.y == value_for_removing:
-                    if compare.x > point.x:
-                        left_potential_points.remove(compare)
-                    elif compare.x < point.x:
-                        if point in left_potential_points:
-                            left_potential_points.remove(point)
-
-        left_potential_points.pop()
-
-        # generate right potential points
-        for idx in range(len(self.right_surface_list)):
-            x = CAVE_WIDTH - sum_accumulated_width(self.right_surface_list[idx].surface_object)
-            lower_y = self.right_surface_list[idx].lower_bound
-            higher_y = self.right_surface_list[idx].upper_bound
-
+        for surface in self.right_surface_list:
+            x = AISLE_WIDTH - sum_accumulated_width(surface.surface_object)
             right_potential_points.append(
-                PotentialPoint(x, lower_y, self.right_surface_list[idx].surface_object, 'LOWER'))
+                PotentialPoint(x, surface.lower_bound, surface.surface_object, 'LOWER')
+            )
             right_potential_points.append(
-                PotentialPoint(x, higher_y, self.right_surface_list[idx].surface_object, 'HIGHER'))
+                PotentialPoint(x, surface.upper_bound, surface.surface_object, 'HIGHER')
+            )
 
-        for point in right_potential_points:
-            value_for_removing = point.y
-            for compare in right_potential_points:
-                if compare.y == value_for_removing:
-                    if compare.x < point.x:
-                        right_potential_points.remove(compare)
-                    elif compare.x > point.x:
-                        if point in right_potential_points:
-                            right_potential_points.remove(point)
+        # delete invalid potential points
+        copied_left_potential_points = left_potential_points[:]
+        left_potential_points.clear()
+        for i, point in enumerate(copied_left_potential_points):
+            exist_same_y = False
+            for compare_point in copied_left_potential_points[:i] + copied_left_potential_points[i+1:]:
+                if point.y == compare_point.y:
+                    exist_same_y = True
+                    if point.x < compare_point.x:
+                        left_potential_points.append(point)
+                    elif point.x > compare_point.x:
+                        left_potential_points.append(compare_point)
+            if (not exist_same_y) and point.y != AISLE_DEPTH:
+                left_potential_points.append(point)
 
-        right_potential_points.pop()
+        copied_right_potential_points = right_potential_points[:]
+        right_potential_points.clear()
+        for i, point in enumerate(copied_right_potential_points):
+            exist_same_y = False
+            for compare_point in copied_right_potential_points[:i] + copied_right_potential_points[i+1:]:
+                if point.y == compare_point.y:
+                    exist_same_y = True
+                    if point.x < compare_point.x:
+                        right_potential_points.append(point)
+                    elif point.x > compare_point.x:
+                        right_potential_points.append(compare_point)
+                    elif point.x == compare_point.x:
+                        pass
+                    else:
+                        print("ERROR")
+            if (not exist_same_y) and point.y != AISLE_DEPTH:
+                right_potential_points.append(point)
 
-        # merge left and right
-        merged_potential_points = left_potential_points[:] + right_potential_points[:]
 
-        # delete duplicate points
-        for point in merged_potential_points:
-            for compare in merged_potential_points:
-                if (point.x == compare.x and point.y == compare.y) and (point != compare):
-                    merged_potential_points.remove(point)
-                    merged_potential_points.remove(compare)
+        #### potential point sorting is needed before it
+
+        # merge potential points which have close y_distance
+        # copied_left_potential_points = left_potential_points[:]
+        # left_potential_points.clear()
+        # for i, point in enumerate(copied_left_potential_points):
+        #     exist_near_y = False
+        #     for compare_point in copied_right_potential_points[:i] + copied_right_potential_points[i + 1:]:
+        #         if point.y - compare_point.y < CURRENT_MIN_HEIGHT and point.y - compare_point > 0:
+        #             exist_near_y = True
+
+
+
+
+
+
+
+        merged_potential_points = left_potential_points + right_potential_points
 
         self.potential_points = merged_potential_points[:]
+
 
     def placing(self, target_obj, target_point):
 
@@ -224,6 +248,7 @@ class GlobalPlanner:
                 self.state_representor.draw_rectangle(
                     target_obj.name, target_point.x, target_point.y, -target_obj.width, -target_obj.height)
 
+
     def selecting_point(self, target_obj):
 
         distance_left_list = []  # (PotentialPoint, width_left, height_left)
@@ -236,7 +261,7 @@ class GlobalPlanner:
         copied_distance_list = distance_left_list[:]
         distance_left_list.clear()
         for distance_left in copied_distance_list:
-            if distance_left[1] > 0 and distance_left[2] > 0 and distance_left[1] - CURRENT_MAX_WIDTH > 0:
+            if distance_left[1] > 0 and distance_left[2] >= 0 and distance_left[1] - CURRENT_MAX_WIDTH > 0:
                 distance_left_list.append(distance_left)
 
         if distance_left_list:
@@ -296,12 +321,12 @@ class PotentialPoint:
             for idx in range(len(right_surface_list)):
                 if (y_level > right_surface_list[idx].lower_bound) and (y_level < right_surface_list[idx].upper_bound):
                     self.counter_obj.append(right_surface_list[idx].surface_object)
-                elif y_level == right_surface_list[idx].lower_bound:
-                    self.counter_obj.append(right_surface_list[idx].surface_object)
-                    self.counter_obj.append(right_surface_list[idx - 1].surface_object)
-                elif y_level == right_surface_list[idx].upper_bound:
-                    self.counter_obj.append(right_surface_list[idx].surface_object)
-                    self.counter_obj.append(right_surface_list[idx + 1].surface_object)
+                # elif y_level == right_surface_list[idx].lower_bound:
+                #     self.counter_obj.append(right_surface_list[idx].surface_object)
+                #     self.counter_obj.append(right_surface_list[idx - 1].surface_object)
+                # elif y_level == right_surface_list[idx].upper_bound:
+                #     self.counter_obj.append(right_surface_list[idx].surface_object)
+                #     self.counter_obj.append(right_surface_list[idx + 1].surface_object)
 
                 elif self.lower_or_higher == 'LOWER':
                     if (y_level + CURRENT_MAX_HEIGHT >= right_surface_list[idx].lower_bound) \
@@ -318,7 +343,7 @@ class PotentialPoint:
                 if comparison_value > current_max_width:
                     current_max_width = comparison_value
 
-            free_width = CAVE_WIDTH - self.x - current_max_width
+            free_width = AISLE_WIDTH - self.x - current_max_width
 
             # calculate free_height for self(potential point)
             for surface in left_surface_list:
@@ -330,12 +355,12 @@ class PotentialPoint:
             for idx in range(len(left_surface_list)):
                 if (y_level > left_surface_list[idx].lower_bound) and (y_level < left_surface_list[idx].upper_bound):
                     self.counter_obj.append(left_surface_list[idx].surface_object)
-                elif y_level == left_surface_list[idx].lower_bound:
-                    self.counter_obj.append(left_surface_list[idx].surface_object)
-                    self.counter_obj.append(left_surface_list[idx - 1].surface_object)
-                elif y_level == left_surface_list[idx].upper_bound:
-                    self.counter_obj.append(left_surface_list[idx].surface_object)
-                    self.counter_obj.append(left_surface_list[idx + 1].surface_object)
+                # elif y_level == left_surface_list[idx].lower_bound:
+                #     self.counter_obj.append(left_surface_list[idx].surface_object)
+                #     self.counter_obj.append(left_surface_list[idx - 1].surface_object)
+                # elif y_level == left_surface_list[idx].upper_bound:
+                #     self.counter_obj.append(left_surface_list[idx].surface_object)
+                #     self.counter_obj.append(left_surface_list[idx + 1].surface_object)
 
                 elif self.lower_or_higher == 'LOWER':
                     if (y_level + CURRENT_MAX_HEIGHT >= left_surface_list[idx].lower_bound) \
@@ -389,7 +414,7 @@ def main():
             global_planner.state_representor.draw_potential_points(global_planner.potential_points)
             print('Successfully packed ', idx-1, ' objects')
             print('Cannot packing', obj)
-            print('Cave searching will be operated')
+            print('AISLE searching will be operated')
             break
 
         idx += 1
@@ -401,12 +426,17 @@ def main():
     plt.show()
 
     # global_planner = GlobalPlanner()
-    # ob1 = Object(1, 5, 5)
-    # ob2 = Object(2, 2, 4)
-    # ob3 = Object(3, 3, 10)
+    # ob1 = Object(1, 4, 4)
+    # ob2 = Object(2, 3, 2)
+    # ob3 = Object(3, 4, 2)
+    # ob4 = Object(4, 3, 6)
+    # ob5 = Object(5, 5, 2)
+    #
     # global_planner.packing_algorithm(ob1)
     # global_planner.packing_algorithm(ob2)
     # global_planner.packing_algorithm(ob3)
+    # global_planner.packing_algorithm(ob4)
+    # global_planner.packing_algorithm(ob5)
     #
     # global_planner.state_representor.draw_potential_points(global_planner.potential_points)
     #
