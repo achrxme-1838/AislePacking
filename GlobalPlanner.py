@@ -179,38 +179,58 @@ class GlobalPlanner:
         left_potential_points.clear()
         for i, point in enumerate(copied_left_potential_points):
             exist_same_y = False
-            for compare_point in copied_left_potential_points[:i] + copied_left_potential_points[i+1:]:
+            # for compare_point in copied_left_potential_points[:i] + copied_left_potential_points[i+1:]:
+            for compare_point in copied_left_potential_points[i + 1:]:
                 if point.y == compare_point.y:
                     exist_same_y = True
                     if point.x < compare_point.x:
-                        left_potential_points.append(point)
+                        if point not in left_potential_points:
+                            left_potential_points.append(point)
                     elif point.x > compare_point.x:
-                        left_potential_points.append(compare_point)
+                        if compare_point not in left_potential_points:
+                            left_potential_points.append(compare_point)
             if (not exist_same_y) and point.y != AISLE_DEPTH:
-                left_potential_points.append(point)
+                if point not in left_potential_points:
+                    left_potential_points.append(point)
+
+
+        # ISSUE : the points are doubly included -> clear?
+        for point in left_potential_points:
+            print(point)
 
         copied_right_potential_points = right_potential_points[:]
         right_potential_points.clear()
         for i, point in enumerate(copied_right_potential_points):
             exist_same_y = False
-            for compare_point in copied_right_potential_points[:i] + copied_right_potential_points[i+1:]:
+            # for compare_point in copied_right_potential_points[:i] + copied_right_potential_points[i+1:]:
+            for compare_point in copied_right_potential_points[i + 1:]:
                 if point.y == compare_point.y:
                     exist_same_y = True
-                    if point.x < compare_point.x:
-                        right_potential_points.append(point)
-                    elif point.x > compare_point.x:
-                        right_potential_points.append(compare_point)
-                    elif point.x == compare_point.x:
-                        pass
-                    else:
-                        print("ERROR")
+                    if point.x > compare_point.x:
+                        if point not in right_potential_points:
+                            right_potential_points.append(point)
+                    elif point.x < compare_point.x:
+                        if compare_point not in right_potential_points:
+                            right_potential_points.append(compare_point)
             if (not exist_same_y) and point.y != AISLE_DEPTH:
-                right_potential_points.append(point)
+                if point not in right_potential_points:
+                    right_potential_points.append(point)
+
+
+        # merge potential points which have close y_distance
+        # copied_left_potential_points = left_potential_points[:]
+        # copied_left_potential_points.sort(key=lambda value_: value_.y)
+        # left_potential_points.clear()
+        #
+        # for point in copied_left_potential_points:
+        #     print(point)
+
+
 
 
         #### potential point sorting is needed before it
 
-        # merge potential points which have close y_distance
+
         # copied_left_potential_points = left_potential_points[:]
         # left_potential_points.clear()
         # for i, point in enumerate(copied_left_potential_points):
@@ -225,7 +245,7 @@ class GlobalPlanner:
 
 
 
-        merged_potential_points = left_potential_points + right_potential_points
+        merged_potential_points = left_potential_points[:] + right_potential_points[:]
 
         self.potential_points = merged_potential_points[:]
 
@@ -393,54 +413,55 @@ class PotentialPoint:
 
 
 def main():
-    plt.ion()
-    global_planner = GlobalPlanner()
-    stop_animation = False
-
-    def on_key(event):
-        global stop_animation
-        if event.key == 'q':
-            stop_animation = True
-
-    plt.connect('key_press_event', on_key)
-
-    idx = 1
-
-    while not stop_animation:
-        obj = global_planner.object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
-        result = global_planner.packing_algorithm(obj)
-
-        if result == 'Fail':
-            global_planner.state_representor.draw_potential_points(global_planner.potential_points)
-            print('Successfully packed ', idx-1, ' objects')
-            print('Cannot packing', obj)
-            print('AISLE searching will be operated')
-            break
-
-        idx += 1
-
-        plt.draw()
-        plt.pause(0.4)
-
-    plt.ioff()
-    plt.show()
-
+    # plt.ion()
     # global_planner = GlobalPlanner()
-    # ob1 = Object(1, 4, 4)
-    # ob2 = Object(2, 3, 2)
-    # ob3 = Object(3, 4, 2)
-    # ob4 = Object(4, 3, 6)
-    # ob5 = Object(5, 5, 2)
+    # stop_animation = False
     #
-    # global_planner.packing_algorithm(ob1)
-    # global_planner.packing_algorithm(ob2)
-    # global_planner.packing_algorithm(ob3)
-    # global_planner.packing_algorithm(ob4)
-    # global_planner.packing_algorithm(ob5)
+    # def on_key(event):
+    #     global stop_animation
+    #     if event.key == 'q':
+    #         stop_animation = True
     #
-    # global_planner.state_representor.draw_potential_points(global_planner.potential_points)
+    # plt.connect('key_press_event', on_key)
     #
+    # idx = 1
+    #
+    # while not stop_animation:
+    #     obj = global_planner.object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
+    #     print("=========================")
+    #     result = global_planner.packing_algorithm(obj)
+    #
+    #     if result == 'Fail':
+    #         global_planner.state_representor.draw_potential_points(global_planner.potential_points)
+    #         print('Successfully packed ', idx-1, ' objects')
+    #         print('Cannot packing', obj)
+    #         print('AISLE searching will be operated')
+    #         break
+    #
+    #     idx += 1
+    #
+    #     plt.draw()
+    #     plt.pause(0.1)
+    #
+    # plt.ioff()
     # plt.show()
+
+    global_planner = GlobalPlanner()
+    ob1 = Object(1, 4, 4)
+    ob2 = Object(2, 3, 2)
+    ob3 = Object(3, 4, 2)
+    ob4 = Object(4, 3, 6)
+    ob5 = Object(5, 5, 2)
+
+    global_planner.packing_algorithm(ob1)
+    global_planner.packing_algorithm(ob2)
+    global_planner.packing_algorithm(ob3)
+    global_planner.packing_algorithm(ob4)
+    global_planner.packing_algorithm(ob5)
+
+    global_planner.state_representor.draw_potential_points(global_planner.potential_points)
+
+    plt.show()
 
 if __name__ == "__main__":
     main()
