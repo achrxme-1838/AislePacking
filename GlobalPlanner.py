@@ -13,6 +13,7 @@ CURRENT_MAX_HEIGHT = 5
 CURRENT_MIN_WIDTH = 2
 CURRENT_MIN_HEIGHT = 2
 
+
 # TODO : 좁은 틈 (CURRENT MIN HEIGHT)을 알면 potential point 만들 때 좁은 틈에 있는 2개 지우고, 좀 더 밖에 1개로 대체 가능
 
 class Object:
@@ -24,7 +25,7 @@ class Object:
         self.covered_obj = None
 
     def __str__(self):
-        return f"Object {self.name} : ({self.width}, {self.height})"
+        return f"Object {self.name} size=({self.width}, {self.height})"
 
 
 def sum_accumulated_width(surface_obj):
@@ -84,8 +85,10 @@ class Surface:
         self.upper_bound = upper_bound
 
         # print(self.lower_bound, self.upper_bound)
+
     def __str__(self):
         return f"Surface {self.surface_object} : ({self.lower_bound}, {self.upper_bound})"
+
 
 class GlobalPlanner:
     def __init__(self):
@@ -147,37 +150,52 @@ class GlobalPlanner:
         return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
                       random.randint(CURRENT_MIN_HEIGHT, max_height))
 
-
     def generate_potential_points(self):
 
         left_potential_points = []
         right_potential_points = []
 
         # generate potential points
-        for surface in self.left_surface_list:
+        for idx, surface in enumerate(self.left_surface_list):
             x = sum_accumulated_width(surface.surface_object)
-            left_potential_points.append(
-                PotentialPoint(x, surface.lower_bound, surface.surface_object, 'LOWER')
-            )
-            left_potential_points.append(
-                PotentialPoint(x, surface.upper_bound, surface.surface_object, 'HIGHER')
-            )
+            if 0 < idx < len(self.left_surface_list) - 1:
+                left_potential_points.append(
+                    PotentialPoint(x, surface.lower_bound, surface.surface_object,
+                                   'LOWER', self.left_surface_list[idx - 1].surface_object)
+                )
+                left_potential_points.append(
+                    PotentialPoint(x, surface.upper_bound, surface.surface_object,
+                                   'HIGHER', self.left_surface_list[idx + 1].surface_object)
+                )
+            elif idx == 0:
+                left_potential_points.append(PotentialPoint(x, surface.lower_bound, surface.surface_object, 'LOWER'))
+            elif idx == len(self.left_surface_list) - 1:
+                left_potential_points.append(PotentialPoint(x, surface.lower_bound, surface.surface_object,
+                                                            'LOWER', self.left_surface_list[idx - 1].surface_object))
 
-        for surface in self.right_surface_list:
+        for idx, surface in enumerate(self.right_surface_list):
             x = AISLE_WIDTH - sum_accumulated_width(surface.surface_object)
-            right_potential_points.append(
-                PotentialPoint(x, surface.lower_bound, surface.surface_object, 'LOWER')
-            )
-            right_potential_points.append(
-                PotentialPoint(x, surface.upper_bound, surface.surface_object, 'HIGHER')
-            )
+            if 0 < idx < len(self.right_surface_list) - 1:
+                right_potential_points.append(
+                    PotentialPoint(x, surface.lower_bound, surface.surface_object,
+                                   'LOWER', self.right_surface_list[idx - 1].surface_object)
+                )
+                right_potential_points.append(
+                    PotentialPoint(x, surface.upper_bound, surface.surface_object,
+                                   'HIGHER', self.right_surface_list[idx + 1].surface_object)
+                )
+            elif idx == 0:
+                right_potential_points.append(PotentialPoint(x, surface.lower_bound, surface.surface_object, 'LOWER'))
+            elif idx == len(self.right_surface_list) - 1:
+                right_potential_points.append(PotentialPoint(x, surface.lower_bound, surface.surface_object,
+                                                             'LOWER', self.right_surface_list[idx - 1].surface_object))
 
         # delete invalid potential points
         copied_left_potential_points = left_potential_points[:]
         left_potential_points.clear()
         for i, point in enumerate(copied_left_potential_points):
             exist_same_y = False
-            for compare_point in copied_left_potential_points[:i] + copied_left_potential_points[i+1:]:
+            for compare_point in copied_left_potential_points[:i] + copied_left_potential_points[i + 1:]:
                 if point.y == compare_point.y:
                     exist_same_y = True
                     if point.x < compare_point.x:
@@ -194,7 +212,7 @@ class GlobalPlanner:
         right_potential_points.clear()
         for i, point in enumerate(copied_right_potential_points):
             exist_same_y = False
-            for compare_point in copied_right_potential_points[:i] + copied_right_potential_points[i+1:]:
+            for compare_point in copied_right_potential_points[:i] + copied_right_potential_points[i + 1:]:
                 if point.y == compare_point.y:
                     exist_same_y = True
                     if point.x > compare_point.x:
@@ -207,67 +225,46 @@ class GlobalPlanner:
                 if point not in right_potential_points:
                     right_potential_points.append(point)
 
-        for point in left_potential_points:
-            print('left : ', point)
+        # for point in left_potential_points:
+        #     print('left : ', point)
         # for point in right_potential_points:
         #     print('right : ', point)
 
-
         #  merge potential points which have close y_distance
-
-        copied_left_potential_points = left_potential_points[:]
-        left_potential_points.clear()
-        for idx, point in enumerate(copied_left_potential_points):
-            exist_near_y = False
-            lower_compare_point = copied_left_potential_points[idx - 1]
-            print('pair : ', point, lower_compare_point)
-            if idx - 1 > 0 and point.x == lower_compare_point.x and point.y - lower_compare_point.y < CURRENT_MIN_HEIGHT:
-                exist_near_y = True
-                print("near", point, lower_compare_point)
-                if idx - 2 >= 0 and idx + 1 < len(copied_left_potential_points):
-                    if copied_left_potential_points[idx + 1].x < copied_left_potential_points[idx - 2].x:
-                        print('case 1')
-                        print(copied_left_potential_points[idx + 1])
-                        print(copied_left_potential_points[idx + 1].x)
-                        left_potential_points.append(
-                            PotentialPoint(copied_left_potential_points[idx + 1].x, lower_compare_point.y,
-                                           copied_left_potential_points[idx + 1].covered_obj, 'LOWER'))
-                    elif copied_left_potential_points[idx + 1].x > copied_left_potential_points[idx - 2].x:
-                        print('case 2')
-                        left_potential_points.append(
-                            PotentialPoint(copied_left_potential_points[idx - 2].x, point.y,
-                                           copied_left_potential_points[idx - 2].covered_obj, 'HIGHER'))
-                    elif copied_left_potential_points[idx + 1].x == copied_left_potential_points[idx - 2].x:
-                        print('case 3')
-                    else:
-                        print("ERROR")
-            if (not exist_near_y) and (point not in left_potential_points):
-                # print('a')
-                left_potential_points.append(point)
-
-
+        #
+        # copied_left_potential_points = left_potential_points[:]
+        # left_potential_points.clear()
         # for idx, point in enumerate(copied_left_potential_points):
         #     exist_near_y = False
-        #     for compare_point in copied_left_potential_points[:idx] + copied_left_potential_points[idx + 1:]:
-        #         if point.x == compare_point.x:
-        #             if point.y > compare_point.y:
-        #                 if point.y - compare_point.y < CURRENT_MIN_HEIGHT:
-        #                     exist_near_y = True
-        #                     print("near", point, compare_point)
-        #                     if copied_left_potential_points[idx - 1].x < copied_left_potential_points[idx + 1]
-
-                    # elif point.y < compare_point.y:
-                    #     if compare_point.y - point.y < CURRENT_MIN_HEIGHT:
-                    #         exist_near_y = True
-                    #         print("near 2 ")
-                    # else:
-                    #     print("BUG")
-
+        #     lower_compare_point = copied_left_potential_points[idx - 1]
+        #     print('pair : ', point, lower_compare_point)
+        #     if idx - 1 > 0 and point.x == lower_compare_point.x and point.y - lower_compare_point.y < CURRENT_MIN_HEIGHT:
+        #         exist_near_y = True
+        #         print("near", point, lower_compare_point)
+        #         if idx - 2 >= 0 and idx + 1 < len(copied_left_potential_points):
+        #             if copied_left_potential_points[idx + 1].x < copied_left_potential_points[idx - 2].x:
+        #                 print('case 1')
+        #                 print(copied_left_potential_points[idx + 1])
+        #                 print(copied_left_potential_points[idx + 1].x)
+        #                 left_potential_points.append(
+        #                     PotentialPoint(copied_left_potential_points[idx + 1].x, lower_compare_point.y,
+        #                                    copied_left_potential_points[idx + 1].covered_obj, 'LOWER'))
+        #             elif copied_left_potential_points[idx + 1].x > copied_left_potential_points[idx - 2].x:
+        #                 print('case 2')
+        #                 left_potential_points.append(
+        #                     PotentialPoint(copied_left_potential_points[idx - 2].x, point.y,
+        #                                    copied_left_potential_points[idx - 2].covered_obj, 'HIGHER'))
+        #             elif copied_left_potential_points[idx + 1].x == copied_left_potential_points[idx - 2].x:
+        #                 print('case 3')
+        #             else:
+        #                 print("ERROR")
+        #     if (not exist_near_y) and (point not in left_potential_points):
+        #         # print('a')
+        #         left_potential_points.append(point)
 
         merged_potential_points = left_potential_points[:] + right_potential_points[:]
 
         self.potential_points = merged_potential_points[:]
-
 
     def placing(self, target_obj, target_point):
 
@@ -286,7 +283,6 @@ class GlobalPlanner:
             else:
                 self.state_representor.draw_rectangle(
                     target_obj.name, target_point.x, target_point.y, -target_obj.width, -target_obj.height)
-
 
     def selecting_point(self, target_obj):
 
@@ -334,10 +330,11 @@ class GlobalPlanner:
 
 
 class PotentialPoint:
-    def __init__(self, x, y, covered_obj, lower_or_higher):
+    def __init__(self, x, y, covered_obj, lower_or_higher, next_to_obj=None):
         self.x = x
         self.y = y
         self.covered_obj = covered_obj
+        self.next_to_obj = next_to_obj
         self.lower_or_higher = lower_or_higher
 
         self.width_left = 0
@@ -432,43 +429,45 @@ class PotentialPoint:
 
 
 def main():
+    global_planner = GlobalPlanner()
+    for idx in range(1, 100):
+        obj = global_planner.object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
+        print("=========================")
+        result = global_planner.packing_algorithm(obj)
+
+        if result == 'Fail':
+            global_planner.state_representor.draw_potential_points(global_planner.potential_points)
+            print('Successfully packed ', idx-1, ' objects')
+            print('Cannot packing', obj)
+            print('AISLE searching will be operated')
+            break
+        plt.draw()
+        # plt.pause(0.01)
+        plt.pause(0.01)
+    plt.show()
 
     # global_planner = GlobalPlanner()
-    # for idx in range(1, 100):
-    #     obj = global_planner.object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
-    #     print("=========================")
-    #     result = global_planner.packing_algorithm(obj)
+    # ob1 = Object(1, 4, 4)
+    # ob2 = Object(2, 3, 2)
+    # ob3 = Object(3, 4, 2)
+    # ob4 = Object(4, 3, 6)
+    # ob5 = Object(5, 5, 1)
+    # ob6 = Object(6, 10, 3)
     #
-    #     if result == 'Fail':
-    #         global_planner.state_representor.draw_potential_points(global_planner.potential_points)
-    #         print('Successfully packed ', idx-1, ' objects')
-    #         print('Cannot packing', obj)
-    #         print('AISLE searching will be operated')
-    #         break
-    #     plt.draw()
-    #     # plt.pause(0.01)
-    #     plt.pause(0.5)
+    # global_planner.packing_algorithm(ob1)
+    # global_planner.packing_algorithm(ob2)
+    # global_planner.packing_algorithm(ob3)
+    # global_planner.packing_algorithm(ob4)
+    # global_planner.packing_algorithm(ob5)
+    # print("===========================")
+    # global_planner.packing_algorithm(ob6)
+    #
+    # global_planner.state_representor.draw_potential_points(global_planner.potential_points)
+    # for point in global_planner.potential_points:
+    #     print(point, point.next_to_obj)
+    #
     # plt.show()
 
-    global_planner = GlobalPlanner()
-    ob1 = Object(1, 4, 4)
-    ob2 = Object(2, 3, 2)
-    ob3 = Object(3, 4, 2)
-    ob4 = Object(4, 3, 6)
-    ob5 = Object(5, 5, 1)
-    ob6 = Object(6, 10, 3)
-
-    global_planner.packing_algorithm(ob1)
-    global_planner.packing_algorithm(ob2)
-    global_planner.packing_algorithm(ob3)
-    global_planner.packing_algorithm(ob4)
-    global_planner.packing_algorithm(ob5)
-    print("===========================")
-    global_planner.packing_algorithm(ob6)
-
-    global_planner.state_representor.draw_potential_points(global_planner.potential_points)
-
-    plt.show()
 
 if __name__ == "__main__":
     main()
