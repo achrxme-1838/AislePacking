@@ -147,8 +147,6 @@ class GlobalPlanner:
         return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
                       random.randint(CURRENT_MIN_HEIGHT, max_height))
 
-    # TODO
-    # for i, fruit in enumerate(my_list): ???
 
     def generate_potential_points(self):
 
@@ -179,8 +177,7 @@ class GlobalPlanner:
         left_potential_points.clear()
         for i, point in enumerate(copied_left_potential_points):
             exist_same_y = False
-            # for compare_point in copied_left_potential_points[:i] + copied_left_potential_points[i+1:]:
-            for compare_point in copied_left_potential_points[i + 1:]:
+            for compare_point in copied_left_potential_points[:i] + copied_left_potential_points[i+1:]:
                 if point.y == compare_point.y:
                     exist_same_y = True
                     if point.x < compare_point.x:
@@ -193,17 +190,11 @@ class GlobalPlanner:
                 if point not in left_potential_points:
                     left_potential_points.append(point)
 
-
-        # ISSUE : the points are doubly included -> clear?
-        for point in left_potential_points:
-            print(point)
-
         copied_right_potential_points = right_potential_points[:]
         right_potential_points.clear()
         for i, point in enumerate(copied_right_potential_points):
             exist_same_y = False
-            # for compare_point in copied_right_potential_points[:i] + copied_right_potential_points[i+1:]:
-            for compare_point in copied_right_potential_points[i + 1:]:
+            for compare_point in copied_right_potential_points[:i] + copied_right_potential_points[i+1:]:
                 if point.y == compare_point.y:
                     exist_same_y = True
                     if point.x > compare_point.x:
@@ -216,33 +207,61 @@ class GlobalPlanner:
                 if point not in right_potential_points:
                     right_potential_points.append(point)
 
-
-        # merge potential points which have close y_distance
-        # copied_left_potential_points = left_potential_points[:]
-        # copied_left_potential_points.sort(key=lambda value_: value_.y)
-        # left_potential_points.clear()
-        #
-        # for point in copied_left_potential_points:
-        #     print(point)
+        for point in left_potential_points:
+            print('left : ', point)
+        # for point in right_potential_points:
+        #     print('right : ', point)
 
 
+        #  merge potential points which have close y_distance
+
+        copied_left_potential_points = left_potential_points[:]
+        left_potential_points.clear()
+        for idx, point in enumerate(copied_left_potential_points):
+            exist_near_y = False
+            lower_compare_point = copied_left_potential_points[idx - 1]
+            print('pair : ', point, lower_compare_point)
+            if idx - 1 > 0 and point.x == lower_compare_point.x and point.y - lower_compare_point.y < CURRENT_MIN_HEIGHT:
+                exist_near_y = True
+                print("near", point, lower_compare_point)
+                if idx - 2 >= 0 and idx + 1 < len(copied_left_potential_points):
+                    if copied_left_potential_points[idx + 1].x < copied_left_potential_points[idx - 2].x:
+                        print('case 1')
+                        print(copied_left_potential_points[idx + 1])
+                        print(copied_left_potential_points[idx + 1].x)
+                        left_potential_points.append(
+                            PotentialPoint(copied_left_potential_points[idx + 1].x, lower_compare_point.y,
+                                           copied_left_potential_points[idx + 1].covered_obj, 'LOWER'))
+                    elif copied_left_potential_points[idx + 1].x > copied_left_potential_points[idx - 2].x:
+                        print('case 2')
+                        left_potential_points.append(
+                            PotentialPoint(copied_left_potential_points[idx - 2].x, point.y,
+                                           copied_left_potential_points[idx - 2].covered_obj, 'HIGHER'))
+                    elif copied_left_potential_points[idx + 1].x == copied_left_potential_points[idx - 2].x:
+                        print('case 3')
+                    else:
+                        print("ERROR")
+            if (not exist_near_y) and (point not in left_potential_points):
+                # print('a')
+                left_potential_points.append(point)
 
 
-        #### potential point sorting is needed before it
-
-
-        # copied_left_potential_points = left_potential_points[:]
-        # left_potential_points.clear()
-        # for i, point in enumerate(copied_left_potential_points):
+        # for idx, point in enumerate(copied_left_potential_points):
         #     exist_near_y = False
-        #     for compare_point in copied_right_potential_points[:i] + copied_right_potential_points[i + 1:]:
-        #         if point.y - compare_point.y < CURRENT_MIN_HEIGHT and point.y - compare_point > 0:
-        #             exist_near_y = True
+        #     for compare_point in copied_left_potential_points[:idx] + copied_left_potential_points[idx + 1:]:
+        #         if point.x == compare_point.x:
+        #             if point.y > compare_point.y:
+        #                 if point.y - compare_point.y < CURRENT_MIN_HEIGHT:
+        #                     exist_near_y = True
+        #                     print("near", point, compare_point)
+        #                     if copied_left_potential_points[idx - 1].x < copied_left_potential_points[idx + 1]
 
-
-
-
-
+                    # elif point.y < compare_point.y:
+                    #     if compare_point.y - point.y < CURRENT_MIN_HEIGHT:
+                    #         exist_near_y = True
+                    #         print("near 2 ")
+                    # else:
+                    #     print("BUG")
 
 
         merged_potential_points = left_potential_points[:] + right_potential_points[:]
@@ -413,20 +432,9 @@ class PotentialPoint:
 
 
 def main():
-    # plt.ion()
+
     # global_planner = GlobalPlanner()
-    # stop_animation = False
-    #
-    # def on_key(event):
-    #     global stop_animation
-    #     if event.key == 'q':
-    #         stop_animation = True
-    #
-    # plt.connect('key_press_event', on_key)
-    #
-    # idx = 1
-    #
-    # while not stop_animation:
+    # for idx in range(1, 100):
     #     obj = global_planner.object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
     #     print("=========================")
     #     result = global_planner.packing_algorithm(obj)
@@ -437,13 +445,9 @@ def main():
     #         print('Cannot packing', obj)
     #         print('AISLE searching will be operated')
     #         break
-    #
-    #     idx += 1
-    #
     #     plt.draw()
-    #     plt.pause(0.1)
-    #
-    # plt.ioff()
+    #     # plt.pause(0.01)
+    #     plt.pause(0.5)
     # plt.show()
 
     global_planner = GlobalPlanner()
@@ -451,13 +455,16 @@ def main():
     ob2 = Object(2, 3, 2)
     ob3 = Object(3, 4, 2)
     ob4 = Object(4, 3, 6)
-    ob5 = Object(5, 5, 2)
+    ob5 = Object(5, 5, 1)
+    ob6 = Object(6, 10, 3)
 
     global_planner.packing_algorithm(ob1)
     global_planner.packing_algorithm(ob2)
     global_planner.packing_algorithm(ob3)
     global_planner.packing_algorithm(ob4)
     global_planner.packing_algorithm(ob5)
+    print("===========================")
+    global_planner.packing_algorithm(ob6)
 
     global_planner.state_representor.draw_potential_points(global_planner.potential_points)
 
