@@ -129,12 +129,13 @@ class GlobalPlanner:
                 if surface.surface_object == target_point.covered_obj:
                     surface.upper_bound = target_point.y - target_obj.height
 
+        self.delete_fully_covered_surface(surface_list)
         # delete fully covered surface
-        copied_surface_list = surface_list[:]
-        surface_list.clear()
-        for surface in copied_surface_list:
-            if surface.lower_bound != surface.upper_bound:
-                surface_list.append(surface)
+        # copied_surface_list = surface_list[:]
+        # surface_list.clear()
+        # for surface in copied_surface_list:
+        #     if surface.lower_bound != surface.upper_bound:
+        #         surface_list.append(surface)
 
         surface_list.sort(key=lambda x_: x_.lower_bound)
 
@@ -142,6 +143,14 @@ class GlobalPlanner:
             self.left_surface_list = surface_list[:]
         else:
             self.right_surface_list = surface_list[:]
+
+
+    def delete_fully_covered_surface(self, surface_list):
+        copied_surface_list = surface_list[:]
+        surface_list.clear()
+        for surface in copied_surface_list:
+            if surface.lower_bound != surface.upper_bound:
+                surface_list.append(surface)
 
     def object_generator(self, name, max_width, max_height):
         return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
@@ -220,8 +229,6 @@ class GlobalPlanner:
                             elif upper_surface.x == lower_surface.x:
                                 lower_surface.upper_bound = base_surface.upper_bound
                                 base_surface.lower_bound = base_surface.upper_bound
-                            else:
-                                print('error')
 
         for idx, point in enumerate(right_potential_points):
             if idx - 1 > 0 and idx < len(right_potential_points):
@@ -240,8 +247,9 @@ class GlobalPlanner:
                             elif upper_surface.x == lower_surface.x:
                                 lower_surface.upper_bound = base_surface.upper_bound
                                 base_surface.lower_bound = base_surface.upper_bound
-                            else:
-                                print('error')
+
+        self.delete_fully_covered_surface(self.left_surface_list)
+        self.delete_fully_covered_surface(self.right_surface_list)
 
         merged_potential_points = left_potential_points[:] + right_potential_points[:]
 
@@ -267,7 +275,7 @@ class GlobalPlanner:
 
     def selecting_point(self, target_obj):
 
-        distance_left_list = []  # (PotentialPoint, width_left, height_left)
+        distance_left_list = []
 
         for point in self.potential_points:
             width_left, height_left = point.distance_left_calculator(
