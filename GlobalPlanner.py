@@ -353,42 +353,17 @@ class PotentialPoint:
     def distance_left_calculator(self, target_obj, left_surface_list, right_surface_list):
 
         free_width = 0
-        free_height = 0
-
-        # y_level = self.y
-
         if left_or_right_judge(self.covered_obj) == 'LEFT_WALL':
-            # calculate free_width for self(potential point)
-
-            # find counter
             self.counter_finder(right_surface_list)
-
-            current_most_inner = self.counter_surface_set[0].x
-            for comparison in self.counter_surface_set:
-                comparison_value = comparison.x
-                if comparison_value < current_most_inner:
-                    current_most_inner = comparison_value
+            current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = current_most_inner - self.x
-
-            # calculate free_height for self(potential point)
-            for surface in left_surface_list:
-                if self.covered_obj == surface.surface_object:
-                    free_height = surface.upper_bound - surface.lower_bound
 
         elif left_or_right_judge(self.covered_obj) == 'RIGHT_WALL':
             self.counter_finder(left_surface_list)
-
-            current_most_inner = self.counter_surface_set[0].x
-            for comparison in self.counter_surface_set:
-                comparison_value = comparison.x
-                if comparison_value > current_most_inner:
-                    current_most_inner = comparison_value
-
+            current_most_inner = max(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = self.x - current_most_inner
 
-            for surface in right_surface_list:
-                if self.covered_obj == surface.surface_object:
-                    free_height = surface.upper_bound - surface.lower_bound
+        free_height = self.parent_surface.upper_bound - self.parent_surface.lower_bound
 
         self.width_left = free_width - target_obj.width
         self.height_left = free_height - target_obj.height
