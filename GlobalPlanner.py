@@ -18,6 +18,7 @@ def object_generator(name, max_width, max_height):
     return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
                   random.randint(CURRENT_MIN_HEIGHT, max_height))
 
+
 def left_or_right_judge(target_obj):
     current = target_obj
     if current is not None:
@@ -77,7 +78,7 @@ class PotentialPoint:
                     self.counter_surface_set.append(counter_surface)
 
     # calculate left_distance after we place target at that specific point
-    def distance_left_calculator(self, target_obj, left_surface_list, right_surface_list):
+    def free_distance_calculator(self, target_obj, left_surface_list, right_surface_list):
 
         free_width = 0
         if left_or_right_judge(self.covered_obj) == 'LEFT_WALL':
@@ -140,6 +141,7 @@ class StateRepresentor:
             y = point.y
             circle = Circle((x, y), 0.5, facecolor='red')
             self.ax.add_patch(circle)
+
 
 class GlobalPlanner:
     def __init__(self):
@@ -315,26 +317,27 @@ class GlobalPlanner:
                     target_obj.name, target_point.x, target_point.y, -target_obj.width, -target_obj.height)
 
     def selecting_point(self, target_obj):
+        class FreeDistance:
+            def __init__(self, potential_point, free_width_, free_height_):
+                self.potential_point = potential_point
+                self.free_width = free_width_
+                self.free_height = free_height_
 
-        distance_left_list = []
+        free_distance_list = []
 
         for point in self.potential_points:
-            width_left, height_left = point.distance_left_calculator(
+            free_width, free_height = point.free_distance_calculator(
                 target_obj, self.left_surface_list, self.right_surface_list)
-            distance_left_list.append((point, width_left, height_left))
+            free_distance_list.append(FreeDistance(point, free_width, free_height))
 
-        copied_distance_list = distance_left_list[:]
-        distance_left_list.clear()
-        for distance_left in copied_distance_list:
-            if distance_left[1] > 0 and distance_left[2] >= 0 and distance_left[1] - CURRENT_MAX_WIDTH > 0:
-                distance_left_list.append(distance_left)
+        copied_free_distance_list = free_distance_list[:]
+        free_distance_list.clear()
+        for free_distance in copied_free_distance_list:
+            if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
+                free_distance_list.append(free_distance)
 
-        if distance_left_list:
-            current_nearest = distance_left_list[0][0]
-            for compare in distance_left_list:
-                if compare[0].y < current_nearest.y:
-                    current_nearest = compare[0]
-
+        if free_distance_list:
+            current_nearest = min(free_distance_list, key=lambda x: x.potential_point.y).potential_point
             target_obj.covered_obj = current_nearest.covered_obj
         else:
             current_nearest = None
