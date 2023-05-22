@@ -5,7 +5,7 @@ from matplotlib.patches import Circle
 import random
 
 AISLE_WIDTH = 20
-AISLE_DEPTH = 40
+AISLE_DEPTH = 50
 
 CURRENT_MAX_WIDTH = 5
 CURRENT_MAX_HEIGHT = 5
@@ -81,17 +81,30 @@ class PotentialPoint:
     def free_distance_calculator(self, target_obj, left_surface_list, right_surface_list):
 
         free_width = 0
+        free_height = self.parent_surface.upper_bound - self.parent_surface.lower_bound
+
         if left_or_right_judge(self.covered_obj) == 'LEFT_WALL':
             self.counter_finder(right_surface_list)
             current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = current_most_inner - self.x
 
+            # TODO : To solve free height for same x issue
+            # if self.lower_or_upper == 'LOWER':
+            #     for idx, surface in enumerate(left_surface_list):
+            #         if surface == self.parent_surface:
+            #             iterator = 1
+            #             while idx + iterator < len(left_surface_list):
+            #                 upper_surface = left_surface_list[idx + iterator]
+            #                 if surface.x == upper_surface.x:
+            #                     free_height += (upper_surface.upper_bound - upper_surface.lower_bound)
+            #                 else:
+            #                     break
+            #                 idx += 1
+
         elif left_or_right_judge(self.covered_obj) == 'RIGHT_WALL':
             self.counter_finder(left_surface_list)
             current_most_inner = max(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = self.x - current_most_inner
-
-        free_height = self.parent_surface.upper_bound - self.parent_surface.lower_bound
 
         self.width_left = free_width - target_obj.width
         self.height_left = free_height - target_obj.height
@@ -142,7 +155,6 @@ class StateRepresentor:
             circle = Circle((x, y), 0.5, facecolor='red')
             self.ax.add_patch(circle)
 
-
 class GlobalPlanner:
     def __init__(self):
 
@@ -173,6 +185,8 @@ class GlobalPlanner:
             surface_list.append(Surface(target_obj, target_point.y, target_point.y + target_obj.height, surface_x))
             for surface in surface_list:
                 # change the lower bound of surface covered by target object
+                
+                # TODO : covered object가 여러 개인 경우 고려 해야 함 -> 전체적으로 covered_obj 손봐야 하는듯
                 if surface.surface_object == target_point.covered_obj:
                     surface.lower_bound = target_point.y + target_obj.height
 
@@ -196,7 +210,7 @@ class GlobalPlanner:
         copied_surface_list = surface_list[:]
         surface_list.clear()
         for surface in copied_surface_list:
-            if surface.lower_bound != surface.upper_bound:
+            if surface.lower_bound < surface.upper_bound:
                 surface_list.append(surface)
 
     def generate_potential_points(self):
@@ -259,6 +273,7 @@ class GlobalPlanner:
             if idx - 1 > 0 and idx < len(left_potential_points):
                 lower_compare_point = left_potential_points[idx - 1]
                 if point.x == lower_compare_point.x and point.y - lower_compare_point.y < CURRENT_MIN_HEIGHT:
+                # if point.x == lower_compare_point.x and point.y - lower_compare_point.y < target_obj.height:
                     for surface_idx, base_surface in enumerate(self.left_surface_list):
                         if base_surface == point.parent_surface:
                             upper_surface = self.left_surface_list[surface_idx + 1]
@@ -277,6 +292,7 @@ class GlobalPlanner:
             if idx - 1 > 0 and idx < len(right_potential_points):
                 lower_compare_point = right_potential_points[idx - 1]
                 if point.x == lower_compare_point.x and point.y - lower_compare_point.y < CURRENT_MIN_HEIGHT:
+                # if point.x == lower_compare_point.x and point.y - lower_compare_point.y < target_obj.height:
                     for surface_idx, base_surface in enumerate(self.right_surface_list):
                         if base_surface == point.parent_surface:
                             upper_surface = self.right_surface_list[surface_idx + 1]
@@ -335,6 +351,10 @@ class GlobalPlanner:
         for free_distance in copied_free_distance_list:
             if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
                 free_distance_list.append(free_distance)
+            elif free_distance.free_height < 0:
+                print(free_distance.potential_point, 'because of height')
+            elif free_distance.free_width - CURRENT_MAX_WIDTH <= 0:
+                print(free_distance.potential_point, 'because of width')
 
         if free_distance_list:
             current_nearest = min(free_distance_list, key=lambda x: x.potential_point.y).potential_point
@@ -364,11 +384,12 @@ class GlobalPlanner:
 
 def main():
     global_planner = GlobalPlanner()
-    for idx in range(1, 100):
+    idx = 1
+    while 1:
         obj = object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
+        idx += 1
         print("=========================")
         result = global_planner.packing_algorithm(obj)
-
         if result == 'Fail':
             global_planner.state_representor.draw_potential_points(global_planner.potential_points)
             print('Successfully packed ', idx - 1, ' objects')
@@ -379,23 +400,6 @@ def main():
         # plt.pause(0.01)
         plt.pause(0.01)
     plt.show()
-
-    # global_planner = GlobalPlanner()
-    # ob1 = Object(1, 3, 5)
-    # ob2 = Object(2, 4, 6)
-    # ob3 = Object(3, 2, 3)
-    # ob4 = Object(4, 5, 5)
-    # ob5 = Object(5, 2, 3)
-    #
-    # global_planner.packing_algorithm(ob1)
-    # global_planner.packing_algorithm(ob2)
-    # global_planner.packing_algorithm(ob3)
-    # global_planner.packing_algorithm(ob4)
-    # print("=========================")
-    # global_planner.packing_algorithm(ob5)
-    #
-    # global_planner.state_representor.draw_potential_points(global_planner.potential_points)
-    # plt.show()
 
 
 if __name__ == "__main__":
