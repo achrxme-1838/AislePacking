@@ -26,17 +26,6 @@ class Object:
         return f"Object {self.name} size=({self.width}, {self.height})"
 
 
-def sum_accumulated_width(surface_obj):
-    accumulated_width = 0
-    current_obj = surface_obj
-    if current_obj is not None:
-        while current_obj.covered_obj is not None:
-            accumulated_width += current_obj.width
-            current_obj = current_obj.covered_obj
-
-    return accumulated_width
-
-
 def left_or_right_judge(target_obj):
     current = target_obj
     if current is not None:
@@ -114,7 +103,6 @@ class GlobalPlanner:
             surface_x = target_point.x - target_obj.width
 
         if target_point.lower_or_higher == 'LOWER':
-            # Add new surface
             surface_list.append(Surface(target_obj, target_point.y, target_point.y + target_obj.height, surface_x))
             for surface in surface_list:
                 # change the lower bound of surface covered by target object
@@ -122,7 +110,6 @@ class GlobalPlanner:
                     surface.lower_bound = target_point.y + target_obj.height
 
         elif target_point.lower_or_higher == 'HIGHER':
-            # Add new surface
             surface_list.append(Surface(target_obj, target_point.y - target_obj.height, target_point.y, surface_x))
             for surface in surface_list:
                 # change the upper bound of surface covered by target object
@@ -156,14 +143,14 @@ class GlobalPlanner:
 
         # generate potential points
         for surface in self.left_surface_list:
-            x = sum_accumulated_width(surface.surface_object)
+            x = surface.x
             left_potential_points.append(
                 PotentialPoint(x, surface.lower_bound, surface.surface_object, 'LOWER', surface))
             left_potential_points.append(
                 PotentialPoint(x, surface.upper_bound, surface.surface_object, 'HIGHER', surface))
 
         for surface in self.right_surface_list:
-            x = AISLE_WIDTH - sum_accumulated_width(surface.surface_object)
+            x = surface.x
             right_potential_points.append(
                 PotentialPoint(x, surface.lower_bound, surface.surface_object, 'LOWER', surface))
             right_potential_points.append(
