@@ -22,11 +22,13 @@ def object_generator(mode, name, max_width, max_height):
         return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
                     random.randint(CURRENT_MIN_HEIGHT, max_height))
     elif mode == 'FLOAT':
-        return Object(name, random.uniform(CURRENT_MIN_WIDTH, max_width),
-                      random.uniform(CURRENT_MIN_HEIGHT, max_height))
+        return Object(name, round(random.uniform(CURRENT_MIN_WIDTH, max_width), 1),
+                      round(random.uniform(CURRENT_MIN_HEIGHT, max_height), 1))
     elif mode == 'STRIP':
         return Object(name, random.randint(CURRENT_MIN_WIDTH, 5),
                       random.randint(CURRENT_MIN_HEIGHT, 5))
+    else:
+        print('[ERROR] in object generation')
 
 
 
@@ -100,37 +102,10 @@ class PotentialPoint:
             current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = current_most_inner - self.x
 
-            # TODO : 이 부분을 fail 일 때만 쓰는 걸로 변경
-            # vertical_line = self.x
-            # surface_index = left_surface_list.index(self.parent_surface)
-            # while left_surface_list[surface_index].x <= vertical_line:
-            #     free_height += left_surface_list[surface_index].upper_bound \
-            #                    - left_surface_list[surface_index].lower_bound
-            #     if self.lower_or_upper == 'LOWER':
-            #         surface_index += 1
-            #     elif self.lower_or_upper == 'UPPER':
-            #         surface_index -= 1
-            #
-            #     if surface_index >= len(left_surface_list) or surface_index < 0:
-            #         break
-
         elif left_or_right_judge(self.base_obj) == 'RIGHT_WALL':
             self.counter_finder(target_obj, left_surface_list)
             current_most_inner = max(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = self.x - current_most_inner
-        #
-        #     vertical_line = self.x
-        #     surface_index = right_surface_list.index(self.parent_surface)
-        #     while right_surface_list[surface_index].x >= vertical_line:
-        #         free_height += right_surface_list[surface_index].upper_bound \
-        #                        - right_surface_list[surface_index].lower_bound
-        #         if self.lower_or_upper == 'LOWER':
-        #             surface_index += 1
-        #         elif self.lower_or_upper == 'UPPER':
-        #             surface_index -= 1
-        #
-        #         if surface_index >= len(right_surface_list) or surface_index < 0:
-        #             break
 
         self.width_left = free_width - target_obj.width
         self.height_left = free_height - target_obj.height
@@ -435,7 +410,7 @@ class GlobalPlanner:
             target_obj.covered_obj = nearest_point.base_obj
         else:
             # When there is no point can be packed
-            print("urgent placing called with", target_obj)
+            print("try urgent placing, called with", target_obj)
             for point in self.potential_points:
                 urgent_free_width, urgent_free_height = point.urgent_free_distance_calculator(
                         target_obj, self.left_surface_list, self.right_surface_list)
@@ -475,43 +450,25 @@ class GlobalPlanner:
 
 def main():
     global_planner = GlobalPlanner()
+    plt.pause(1)
     idx = 1
     while 1:
-        obj = object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT, 'INT')
+        obj = object_generator('INT', idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
         idx += 1
         result = global_planner.packing_algorithm(obj)
         if result == 'Fail':
             global_planner.state_representor.draw_potential_points(global_planner.potential_points)
             plt.draw()
+            print("===============================")
             print('Successfully packed ', idx - 1, ' objects')
             print('Cannot packing', obj)
             print('AISLE searching will be operated')
             break
-        print('[result] : pack ', obj)
+        # print('[result] : pack ', obj)
         plt.draw()
-        plt.pause(0.01)
+        plt.pause(0.1)
         # plt.pause(1)
     plt.show()
-
-    # global_planner = GlobalPlanner()
-    # ob1 = Object(1, 5, 5)
-    # ob2 = Object(2, 5, 4)
-    # ob3 = Object(3, 5, 4)
-    # # ob4 = Object(4, 5, 4)
-    #
-    # global_planner.packing_algorithm(ob1)
-    # global_planner.packing_algorithm(ob2)
-    # global_planner.packing_algorithm(ob3)
-    # # global_planner.packing_algorithm(ob4)
-    #
-    # for surface in global_planner.left_surface_list:
-    #     print(surface)
-    # for surface in global_planner.right_surface_list:
-    #     print(surface)
-    #
-    # global_planner.state_representor.draw_potential_points(global_planner.potential_points)
-    # plt.show()
-
 
 if __name__ == "__main__":
     main()
