@@ -5,7 +5,7 @@ from matplotlib.patches import Circle
 import random
 
 AISLE_WIDTH = 20
-AISLE_DEPTH = 50
+AISLE_DEPTH = 40
 
 CURRENT_MAX_WIDTH = 5
 CURRENT_MAX_HEIGHT = 5
@@ -17,6 +17,8 @@ CURRENT_MIN_HEIGHT = 2
 def object_generator(name, max_width, max_height):
     return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
                   random.randint(CURRENT_MIN_HEIGHT, max_height))
+    # return Object(name, random.uniform(CURRENT_MIN_WIDTH, max_width),
+    #               random.uniform(CURRENT_MIN_HEIGHT, max_height))
 
 
 def left_or_right_judge(target_obj):
@@ -41,10 +43,10 @@ class Object:
 
 
 class PotentialPoint:
-    def __init__(self, x, y, covered_obj: Object, lower_or_upper, parent_surface):
+    def __init__(self, x, y, base_obj, lower_or_upper, parent_surface):
         self.x = x
         self.y = y
-        self.covered_obj = covered_obj
+        self.base_obj = base_obj
         self.lower_or_upper = lower_or_upper
 
         self.width_left = 0
@@ -82,29 +84,45 @@ class PotentialPoint:
 
         free_width = 0
         free_height = self.parent_surface.upper_bound - self.parent_surface.lower_bound
+        # free_height = 0
 
-        if left_or_right_judge(self.covered_obj) == 'LEFT_WALL':
+        if left_or_right_judge(self.base_obj) == 'LEFT_WALL':
             self.counter_finder(right_surface_list)
             current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = current_most_inner - self.x
 
-            # TODO : To solve free height for same x issue
-            # if self.lower_or_upper == 'LOWER':
-            #     for idx, surface in enumerate(left_surface_list):
-            #         if surface == self.parent_surface:
-            #             iterator = 1
-            #             while idx + iterator < len(left_surface_list):
-            #                 upper_surface = left_surface_list[idx + iterator]
-            #                 if surface.x == upper_surface.x:
-            #                     free_height += (upper_surface.upper_bound - upper_surface.lower_bound)
-            #                 else:
-            #                     break
-            #                 idx += 1
+            vertical_line = self.x
 
-        elif left_or_right_judge(self.covered_obj) == 'RIGHT_WALL':
+            # TODO : 이 부분을 fail 일 때만 쓰는 걸로 변경
+            # surface_index = left_surface_list.index(self.parent_surface)
+            # while left_surface_list[surface_index].x <= vertical_line:
+            #     free_height += left_surface_list[surface_index].upper_bound \
+            #                    - left_surface_list[surface_index].lower_bound
+            #     if self.lower_or_upper == 'LOWER':
+            #         surface_index += 1
+            #     elif self.lower_or_upper == 'UPPER':
+            #         surface_index -= 1
+            #
+            #     if surface_index >= len(left_surface_list) or surface_index < 0:
+            #         break
+
+        elif left_or_right_judge(self.base_obj) == 'RIGHT_WALL':
             self.counter_finder(left_surface_list)
             current_most_inner = max(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = self.x - current_most_inner
+
+            vertical_line = self.x
+            # surface_index = right_surface_list.index(self.parent_surface)
+            # while right_surface_list[surface_index].x >= vertical_line:
+            #     free_height += right_surface_list[surface_index].upper_bound \
+            #                    - right_surface_list[surface_index].lower_bound
+            #     if self.lower_or_upper == 'LOWER':
+            #         surface_index += 1
+            #     elif self.lower_or_upper == 'UPPER':
+            #         surface_index -= 1
+            #
+            #     if surface_index >= len(right_surface_list) or surface_index < 0:
+            #         break
 
         self.width_left = free_width - target_obj.width
         self.height_left = free_height - target_obj.height
@@ -155,6 +173,7 @@ class StateRepresentor:
             circle = Circle((x, y), 0.5, facecolor='red')
             self.ax.add_patch(circle)
 
+
 class GlobalPlanner:
     def __init__(self):
 
@@ -182,20 +201,27 @@ class GlobalPlanner:
             surface_x = target_point.x - target_obj.width
 
         if target_point.lower_or_upper == 'LOWER':
-            surface_list.append(Surface(target_obj, target_point.y, target_point.y + target_obj.height, surface_x))
+            new_surface = Surface(target_obj, target_point.y, target_point.y + target_obj.height, surface_x)
+            surface_list.append(new_surface)
             for surface in surface_list:
                 # change the lower bound of surface covered by target object
-                
-                # TODO : covered object가 여러 개인 경우 고려 해야 함 -> 전체적으로 covered_obj 손봐야 하는듯
-                if surface.surface_object == target_point.covered_obj:
+                if surface.surface_object == target_point.base_obj:
+                    surface.lower_bound = target_point.y + target_obj.height
+                elif surface.lower_bound < target_point.y + target_obj.height and surface != new_surface\
+                        and surface.upper_bound > target_point.y:
                     surface.lower_bound = target_point.y + target_obj.height
 
         elif target_point.lower_or_upper == 'UPPER':
-            surface_list.append(Surface(target_obj, target_point.y - target_obj.height, target_point.y, surface_x))
+            new_surface = Surface(target_obj, target_point.y - target_obj.height, target_point.y, surface_x)
+            surface_list.append(new_surface)
             for surface in surface_list:
                 # change the upper bound of surface covered by target object
-                if surface.surface_object == target_point.covered_obj:
+                if surface.surface_object == target_point.base_obj:
                     surface.upper_bound = target_point.y - target_obj.height
+                elif surface.upper_bound > target_point.y - target_obj.height and surface != new_surface\
+                        and surface.lower_bound < target_point.y:
+                    surface.upper_bound = target_point.y - target_obj.height
+
 
         self.delete_fully_covered_surface(surface_list)
 
@@ -275,7 +301,7 @@ class GlobalPlanner:
                 if point.x == lower_compare_point.x and point.y - lower_compare_point.y < CURRENT_MIN_HEIGHT:
                 # if point.x == lower_compare_point.x and point.y - lower_compare_point.y < target_obj.height:
                     for surface_idx, base_surface in enumerate(self.left_surface_list):
-                        if base_surface == point.parent_surface:
+                        if base_surface == point.parent_surface and surface_idx + 1 < len(self.left_surface_list):
                             upper_surface = self.left_surface_list[surface_idx + 1]
                             lower_surface = self.left_surface_list[surface_idx - 1]
                             if upper_surface.x < lower_surface.x:
@@ -294,7 +320,7 @@ class GlobalPlanner:
                 if point.x == lower_compare_point.x and point.y - lower_compare_point.y < CURRENT_MIN_HEIGHT:
                 # if point.x == lower_compare_point.x and point.y - lower_compare_point.y < target_obj.height:
                     for surface_idx, base_surface in enumerate(self.right_surface_list):
-                        if base_surface == point.parent_surface:
+                        if base_surface == point.parent_surface and surface_idx + 1 < len(self.right_surface_list):
                             upper_surface = self.right_surface_list[surface_idx + 1]
                             lower_surface = self.right_surface_list[surface_idx - 1]
                             if upper_surface.x > lower_surface.x:
@@ -307,8 +333,8 @@ class GlobalPlanner:
                                 lower_surface.upper_bound = base_surface.upper_bound
                                 base_surface.lower_bound = base_surface.upper_bound
 
-        self.delete_fully_covered_surface(self.left_surface_list)
-        self.delete_fully_covered_surface(self.right_surface_list)
+        # self.delete_fully_covered_surface(self.left_surface_list)
+        # self.delete_fully_covered_surface(self.right_surface_list)
 
         merged_potential_points = left_potential_points[:] + right_potential_points[:]
 
@@ -351,19 +377,19 @@ class GlobalPlanner:
         for free_distance in copied_free_distance_list:
             if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
                 free_distance_list.append(free_distance)
-            elif free_distance.free_height < 0:
-                print(free_distance.potential_point, 'because of height')
-            elif free_distance.free_width - CURRENT_MAX_WIDTH <= 0:
-                print(free_distance.potential_point, 'because of width')
+            # elif free_distance.free_height < 0:
+            #     print(free_distance.potential_point, 'because of height')
+            # elif free_distance.free_width - CURRENT_MAX_WIDTH <= 0:
+            #     print(free_distance.potential_point, 'because of width')
 
         if free_distance_list:
-            current_nearest = min(free_distance_list, key=lambda x: x.potential_point.y).potential_point
-            target_obj.covered_obj = current_nearest.covered_obj
+            nearest_point = min(free_distance_list, key=lambda x: x.potential_point.y).potential_point
+            target_obj.covered_obj = nearest_point.base_obj
         else:
-            current_nearest = None
+            nearest_point = None
             print("There is no point which can be packed")
 
-        return current_nearest
+        return nearest_point
 
     def packing_algorithm(self, target_obj):
 
@@ -400,6 +426,25 @@ def main():
         # plt.pause(0.01)
         plt.pause(0.01)
     plt.show()
+
+    # global_planner = GlobalPlanner()
+    # ob1 = Object(1, 5, 5)
+    # ob2 = Object(2, 5, 4)
+    # ob3 = Object(3, 5, 4)
+    # # ob4 = Object(4, 5, 4)
+    #
+    # global_planner.packing_algorithm(ob1)
+    # global_planner.packing_algorithm(ob2)
+    # global_planner.packing_algorithm(ob3)
+    # # global_planner.packing_algorithm(ob4)
+    #
+    # for surface in global_planner.left_surface_list:
+    #     print(surface)
+    # for surface in global_planner.right_surface_list:
+    #     print(surface)
+    #
+    # global_planner.state_representor.draw_potential_points(global_planner.potential_points)
+    # plt.show()
 
 
 if __name__ == "__main__":
