@@ -56,14 +56,14 @@ class PotentialPoint:
 
         self.parent_surface = parent_surface
 
-    def counter_finder(self, counter_surface_list):
+    def counter_finder(self, target_obj, counter_surface_list):
 
         if self.lower_or_upper == 'LOWER':
-            upper_range = self.y + CURRENT_MAX_HEIGHT
-            lower_range = self.y
-        elif self.lower_or_upper == 'UPPER':
-            upper_range = self.y
+            upper_range = self.y + CURRENT_MAX_HEIGHT + target_obj.height
             lower_range = self.y - CURRENT_MAX_HEIGHT
+        elif self.lower_or_upper == 'UPPER':
+            upper_range = self.y + CURRENT_MAX_HEIGHT
+            lower_range = self.y - CURRENT_MAX_HEIGHT - target_obj.height
         else:
             upper_range = None
             lower_range = None
@@ -87,7 +87,7 @@ class PotentialPoint:
         # free_height = 0
 
         if left_or_right_judge(self.base_obj) == 'LEFT_WALL':
-            self.counter_finder(right_surface_list)
+            self.counter_finder(target_obj, right_surface_list)
             current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = current_most_inner - self.x
 
@@ -107,7 +107,7 @@ class PotentialPoint:
             #         break
 
         elif left_or_right_judge(self.base_obj) == 'RIGHT_WALL':
-            self.counter_finder(left_surface_list)
+            self.counter_finder(target_obj, left_surface_list)
             current_most_inner = max(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = self.x - current_most_inner
 
@@ -418,6 +418,7 @@ def main():
         result = global_planner.packing_algorithm(obj)
         if result == 'Fail':
             global_planner.state_representor.draw_potential_points(global_planner.potential_points)
+            plt.draw()
             print('Successfully packed ', idx - 1, ' objects')
             print('Cannot packing', obj)
             print('AISLE searching will be operated')
