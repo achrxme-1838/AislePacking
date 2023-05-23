@@ -9,16 +9,22 @@ AISLE_DEPTH = 40
 
 CURRENT_MAX_WIDTH = 5
 CURRENT_MAX_HEIGHT = 5
+# CURRENT_MAX_WIDTH = 0
+# CURRENT_MAX_HEIGHT = 0
 
 CURRENT_MIN_WIDTH = 2
 CURRENT_MIN_HEIGHT = 2
 
 
 def object_generator(name, max_width, max_height):
+
     return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
                   random.randint(CURRENT_MIN_HEIGHT, max_height))
     # return Object(name, random.uniform(CURRENT_MIN_WIDTH, max_width),
     #               random.uniform(CURRENT_MIN_HEIGHT, max_height))
+    # return Object(name, random.randint(CURRENT_MIN_WIDTH, 5),
+    #               random.randint(CURRENT_MIN_HEIGHT, 5))
+
 
 
 def left_or_right_judge(target_obj):
@@ -91,9 +97,8 @@ class PotentialPoint:
             current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = current_most_inner - self.x
 
-            vertical_line = self.x
-
             # TODO : 이 부분을 fail 일 때만 쓰는 걸로 변경
+            # vertical_line = self.x
             # surface_index = left_surface_list.index(self.parent_surface)
             # while left_surface_list[surface_index].x <= vertical_line:
             #     free_height += left_surface_list[surface_index].upper_bound \
@@ -110,24 +115,71 @@ class PotentialPoint:
             self.counter_finder(target_obj, left_surface_list)
             current_most_inner = max(self.counter_surface_set, key=lambda counter: counter.x).x
             free_width = self.x - current_most_inner
-
-            vertical_line = self.x
-            # surface_index = right_surface_list.index(self.parent_surface)
-            # while right_surface_list[surface_index].x >= vertical_line:
-            #     free_height += right_surface_list[surface_index].upper_bound \
-            #                    - right_surface_list[surface_index].lower_bound
-            #     if self.lower_or_upper == 'LOWER':
-            #         surface_index += 1
-            #     elif self.lower_or_upper == 'UPPER':
-            #         surface_index -= 1
-            #
-            #     if surface_index >= len(right_surface_list) or surface_index < 0:
-            #         break
+        #
+        #     vertical_line = self.x
+        #     surface_index = right_surface_list.index(self.parent_surface)
+        #     while right_surface_list[surface_index].x >= vertical_line:
+        #         free_height += right_surface_list[surface_index].upper_bound \
+        #                        - right_surface_list[surface_index].lower_bound
+        #         if self.lower_or_upper == 'LOWER':
+        #             surface_index += 1
+        #         elif self.lower_or_upper == 'UPPER':
+        #             surface_index -= 1
+        #
+        #         if surface_index >= len(right_surface_list) or surface_index < 0:
+        #             break
 
         self.width_left = free_width - target_obj.width
         self.height_left = free_height - target_obj.height
 
         return self.width_left, self.height_left
+
+    def urgent_free_distance_calculator(self, target_obj, left_surface_list, right_surface_list):
+
+        free_width = 0
+        free_height = 0
+
+        if left_or_right_judge(self.base_obj) == 'LEFT_WALL':
+            self.counter_finder(target_obj, right_surface_list)
+            current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x
+            free_width = current_most_inner - self.x
+
+            vertical_line = self.x
+            surface_index = left_surface_list.index(self.parent_surface)
+            while left_surface_list[surface_index].x <= vertical_line:
+                free_height += left_surface_list[surface_index].upper_bound \
+                               - left_surface_list[surface_index].lower_bound
+                if self.lower_or_upper == 'LOWER':
+                    surface_index += 1
+                elif self.lower_or_upper == 'UPPER':
+                    surface_index -= 1
+
+                if surface_index >= len(left_surface_list) or surface_index < 0:
+                    break
+
+        elif left_or_right_judge(self.base_obj) == 'RIGHT_WALL':
+            self.counter_finder(target_obj, left_surface_list)
+            current_most_inner = max(self.counter_surface_set, key=lambda counter: counter.x).x
+            free_width = self.x - current_most_inner
+
+            vertical_line = self.x
+            surface_index = right_surface_list.index(self.parent_surface)
+            while right_surface_list[surface_index].x >= vertical_line:
+                free_height += right_surface_list[surface_index].upper_bound \
+                               - right_surface_list[surface_index].lower_bound
+                if self.lower_or_upper == 'LOWER':
+                    surface_index += 1
+                elif self.lower_or_upper == 'UPPER':
+                    surface_index -= 1
+
+                if surface_index >= len(right_surface_list) or surface_index < 0:
+                    break
+
+        self.width_left = free_width - target_obj.width
+        self.height_left = free_height - target_obj.height
+
+        return self.width_left, self.height_left
+
 
     def __str__(self):
         return f"Point ({self.x}, {self.y})"
@@ -333,9 +385,6 @@ class GlobalPlanner:
                                 lower_surface.upper_bound = base_surface.upper_bound
                                 base_surface.lower_bound = base_surface.upper_bound
 
-        # self.delete_fully_covered_surface(self.left_surface_list)
-        # self.delete_fully_covered_surface(self.right_surface_list)
-
         merged_potential_points = left_potential_points[:] + right_potential_points[:]
 
         self.potential_points = merged_potential_points[:]
@@ -377,17 +426,30 @@ class GlobalPlanner:
         for free_distance in copied_free_distance_list:
             if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
                 free_distance_list.append(free_distance)
-            # elif free_distance.free_height < 0:
-            #     print(free_distance.potential_point, 'because of height')
-            # elif free_distance.free_width - CURRENT_MAX_WIDTH <= 0:
-            #     print(free_distance.potential_point, 'because of width')
 
         if free_distance_list:
             nearest_point = min(free_distance_list, key=lambda x: x.potential_point.y).potential_point
             target_obj.covered_obj = nearest_point.base_obj
         else:
-            nearest_point = None
-            print("There is no point which can be packed")
+            # When there is no point can be packed
+            print("urgent placing called with", target_obj)
+            for point in self.potential_points:
+                urgent_free_width, urgent_free_height = point.urgent_free_distance_calculator(
+                        target_obj, self.left_surface_list, self.right_surface_list)
+                free_distance_list.append(FreeDistance(point, urgent_free_width, urgent_free_height))
+
+            copied_free_distance_list = free_distance_list[:]
+            free_distance_list.clear()
+            for free_distance in copied_free_distance_list:
+                if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
+                    free_distance_list.append(free_distance)
+
+            if free_distance_list:
+                nearest_point = min(free_distance_list, key=lambda x: x.potential_point.y).potential_point
+                target_obj.covered_obj = nearest_point.base_obj
+            else:
+                nearest_point = None
+                print("There is no point which can be packed")
 
         return nearest_point
 
@@ -414,7 +476,6 @@ def main():
     while 1:
         obj = object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
         idx += 1
-        print("=========================")
         result = global_planner.packing_algorithm(obj)
         if result == 'Fail':
             global_planner.state_representor.draw_potential_points(global_planner.potential_points)
@@ -423,9 +484,10 @@ def main():
             print('Cannot packing', obj)
             print('AISLE searching will be operated')
             break
+        print('[result] : pack ', obj)
         plt.draw()
-        # plt.pause(0.01)
         plt.pause(0.01)
+        # plt.pause(1)
     plt.show()
 
     # global_planner = GlobalPlanner()
