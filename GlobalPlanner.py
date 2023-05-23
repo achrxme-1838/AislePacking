@@ -16,14 +16,17 @@ CURRENT_MIN_WIDTH = 2
 CURRENT_MIN_HEIGHT = 2
 
 
-def object_generator(name, max_width, max_height):
+def object_generator(mode, name, max_width, max_height):
 
-    return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
-                  random.randint(CURRENT_MIN_HEIGHT, max_height))
-    # return Object(name, random.uniform(CURRENT_MIN_WIDTH, max_width),
-    #               random.uniform(CURRENT_MIN_HEIGHT, max_height))
-    # return Object(name, random.randint(CURRENT_MIN_WIDTH, 5),
-    #               random.randint(CURRENT_MIN_HEIGHT, 5))
+    if mode == 'INT':
+        return Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
+                    random.randint(CURRENT_MIN_HEIGHT, max_height))
+    elif mode == 'FLOAT':
+        return Object(name, random.uniform(CURRENT_MIN_WIDTH, max_width),
+                      random.uniform(CURRENT_MIN_HEIGHT, max_height))
+    elif mode == 'STRIP':
+        return Object(name, random.randint(CURRENT_MIN_WIDTH, 5),
+                      random.randint(CURRENT_MIN_HEIGHT, 5))
 
 
 
@@ -474,7 +477,7 @@ def main():
     global_planner = GlobalPlanner()
     idx = 1
     while 1:
-        obj = object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
+        obj = object_generator(idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT, 'INT')
         idx += 1
         result = global_planner.packing_algorithm(obj)
         if result == 'Fail':
