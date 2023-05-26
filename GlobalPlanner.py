@@ -4,8 +4,10 @@ from matplotlib.patches import Circle
 
 import random
 
-AISLE_WIDTH = 20
-AISLE_DEPTH = 40
+import time
+
+AISLE_WIDTH = 40
+AISLE_DEPTH = 100
 
 CURRENT_MAX_WIDTH = 5
 CURRENT_MAX_HEIGHT = 5
@@ -52,6 +54,12 @@ class Object:
     def __str__(self):
         return f"Object {self.name} size=({self.width}, {self.height})"
 
+class FreeDistance:
+    def __init__(self, potential_point, free_width_, free_height_):
+        self.potential_point = potential_point
+        self.free_width = free_width_
+        self.free_height = free_height_
+
 
 class PotentialPoint:
     def __init__(self, x, y, base_obj, lower_or_upper, parent_surface):
@@ -67,7 +75,7 @@ class PotentialPoint:
 
         self.parent_surface = parent_surface
 
-    def counter_finder(self, target_obj, counter_surface_list):
+    def counter_finder(self, target_obj, counter_surface_list): # O(n)
 
         if self.lower_or_upper == 'LOWER':
             upper_range = self.y + CURRENT_MAX_HEIGHT + target_obj.height
@@ -79,9 +87,9 @@ class PotentialPoint:
             upper_range = None
             lower_range = None
 
-        self.counter_surface_set.clear()
+        self.counter_surface_set.clear() # O(n)
 
-        for counter_surface in counter_surface_list:
+        for counter_surface in counter_surface_list: # O(n)
             if lower_range <= counter_surface.upper_bound <= upper_range \
                     or lower_range <= counter_surface.lower_bound <= upper_range \
                     or counter_surface.lower_bound <= lower_range <= counter_surface.upper_bound \
@@ -91,15 +99,14 @@ class PotentialPoint:
                     self.counter_surface_set.append(counter_surface)
 
     # calculate left_distance after we place target at that specific point
-    def free_distance_calculator(self, target_obj, left_surface_list, right_surface_list):
+    def free_distance_calculator(self, target_obj, left_surface_list, right_surface_list): # O(n)
 
         free_width = 0
         free_height = self.parent_surface.upper_bound - self.parent_surface.lower_bound
-        # free_height = 0
 
         if left_or_right_judge(self.base_obj) == 'LEFT_WALL':
-            self.counter_finder(target_obj, right_surface_list)
-            current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x
+            self.counter_finder(target_obj, right_surface_list) # O(n)
+            current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x # O(n)
             free_width = current_most_inner - self.x
 
         elif left_or_right_judge(self.base_obj) == 'RIGHT_WALL':
@@ -329,7 +336,6 @@ class GlobalPlanner:
             if idx - 1 > 0 and idx < len(left_potential_points):
                 lower_compare_point = left_potential_points[idx - 1]
                 if point.x == lower_compare_point.x and point.y - lower_compare_point.y < CURRENT_MIN_HEIGHT:
-                # if point.x == lower_compare_point.x and point.y - lower_compare_point.y < target_obj.height:
                     for surface_idx, base_surface in enumerate(self.left_surface_list):
                         if base_surface == point.parent_surface and surface_idx + 1 < len(self.left_surface_list):
                             upper_surface = self.left_surface_list[surface_idx + 1]
@@ -348,7 +354,6 @@ class GlobalPlanner:
             if idx - 1 > 0 and idx < len(right_potential_points):
                 lower_compare_point = right_potential_points[idx - 1]
                 if point.x == lower_compare_point.x and point.y - lower_compare_point.y < CURRENT_MIN_HEIGHT:
-                # if point.x == lower_compare_point.x and point.y - lower_compare_point.y < target_obj.height:
                     for surface_idx, base_surface in enumerate(self.right_surface_list):
                         if base_surface == point.parent_surface and surface_idx + 1 < len(self.right_surface_list):
                             upper_surface = self.right_surface_list[surface_idx + 1]
@@ -385,34 +390,57 @@ class GlobalPlanner:
                 self.state_representor.draw_rectangle(
                     target_obj.name, target_point.x, target_point.y, -target_obj.width, -target_obj.height)
 
-    def selecting_point(self, target_obj):
-        class FreeDistance:
-            def __init__(self, potential_point, free_width_, free_height_):
-                self.potential_point = potential_point
-                self.free_width = free_width_
-                self.free_height = free_height_
+    def selecting_point(self, target_obj, mode: str) -> PotentialPoint:
 
-        free_distance_list = []
+        filtered_point_list = self.filtering_point(target_obj)
+        if filtered_point_list == 'Fail':
+            return 'Fail'
 
-        for point in self.potential_points:
-            free_width, free_height = point.free_distance_calculator(
+        else:
+            if mode == 'NEAREST':
+                selected_point = min(filtered_point_list, key=lambda criteria: criteria.potential_point.y).potential_point
+
+            elif mode == 'MIN_HEIGHT':
+                selected_point = min(filtered_point_list, key=lambda criteria: criteria.potential_point.height_left).potential_point
+            elif mode == 'MIN_HEIGHT_WIDTH':
+                selected_point = min(filtered_point_list, key=lambda criteria: criteria.potential_point.height_left
+                                                                               * criteria.potential_point.width_left).potential_point
+            # TODO : COVERED obj 수가 최소인 것 ?
+            elif mode == 'RANDOM':
+                selected_point = random.choice(filtered_point_list).potential_point
+            else:
+                selected_point = None
+                print('[ERROR] mode error')
+
+            target_obj.covered_obj = selected_point.base_obj
+            return selected_point
+
+
+
+    def filtering_point(self, target_obj) -> list[FreeDistance]:
+
+        free_distance_list = [] # O(1)
+
+        # O(n^2)
+        for point in self.potential_points: # O(n)
+            free_width, free_height = point.free_distance_calculator( # O(n)
                 target_obj, self.left_surface_list, self.right_surface_list)
             free_distance_list.append(FreeDistance(point, free_width, free_height))
 
-        copied_free_distance_list = free_distance_list[:]
-        free_distance_list.clear()
-        for free_distance in copied_free_distance_list:
+        copied_free_distance_list = free_distance_list[:] # O(n)
+        free_distance_list.clear() # O(n)
+        for free_distance in copied_free_distance_list: # O(n)
             if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
                 free_distance_list.append(free_distance)
 
         if free_distance_list:
-            nearest_point = min(free_distance_list, key=lambda x: x.potential_point.y).potential_point
-            target_obj.covered_obj = nearest_point.base_obj
+            return free_distance_list
+
         else:
             # When there is no point can be packed
             print("try urgent placing, called with", target_obj)
-            for point in self.potential_points:
-                urgent_free_width, urgent_free_height = point.urgent_free_distance_calculator(
+            for point in self.potential_points: # O(n)
+                urgent_free_width, urgent_free_height = point.urgent_free_distance_calculator( # O(n)
                         target_obj, self.left_surface_list, self.right_surface_list)
                 free_distance_list.append(FreeDistance(point, urgent_free_width, urgent_free_height))
 
@@ -423,19 +451,17 @@ class GlobalPlanner:
                     free_distance_list.append(free_distance)
 
             if free_distance_list:
-                nearest_point = min(free_distance_list, key=lambda x: x.potential_point.y).potential_point
-                target_obj.covered_obj = nearest_point.base_obj
+                return free_distance_list
             else:
-                nearest_point = None
                 print("There is no point which can be packed")
+                return 'Fail'
 
-        return nearest_point
 
-    def packing_algorithm(self, target_obj):
+    def packing_algorithm(self, target_obj, mode): # target_obj = N
 
-        target_point = self.selecting_point(target_obj)
+        target_point = self.selecting_point(target_obj, mode) # O(n^2)
 
-        if target_point is None:
+        if target_point == 'Fail':
             return 'Fail'
 
         # Placing the object(drawing)
@@ -448,26 +474,47 @@ class GlobalPlanner:
         return 'Success'
 
 
+packed_obj_list = []
+
+def algorithm_evaluation():
+    aisle_area = AISLE_DEPTH * (AISLE_WIDTH - CURRENT_MAX_WIDTH)
+    packed_area = 0
+    for obj in packed_obj_list:
+        packed_area += obj.width * obj.height
+
+    return packed_area / aisle_area * 100
+
 def main():
     global_planner = GlobalPlanner()
-    plt.pause(1)
+
     idx = 1
     while 1:
-        obj = object_generator('INT', idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
+        obj = object_generator('STRIP', idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
         idx += 1
-        result = global_planner.packing_algorithm(obj)
+
+        start_time = time.time()
+        result = global_planner.packing_algorithm(obj, 'NEAREST')
+        # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT')
+        # result = global_planner.packing_algorithm(obj, 'RANDOM')
+
+        end_time = time.time()
+
+        print('Object : ', idx, ' (Operating time : ', end_time - start_time, ')')
+
         if result == 'Fail':
             global_planner.state_representor.draw_potential_points(global_planner.potential_points)
             plt.draw()
             print("===============================")
             print('Successfully packed ', idx - 1, ' objects')
             print('Cannot packing', obj)
-            print('AISLE searching will be operated')
+
+            print(algorithm_evaluation())
             break
-        # print('[result] : pack ', obj)
+        else:
+            packed_obj_list.append(obj)
+
         plt.draw()
-        plt.pause(0.1)
-        # plt.pause(1)
+        plt.pause(0.0000001)
     plt.show()
 
 if __name__ == "__main__":
