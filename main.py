@@ -1,6 +1,8 @@
 import GlobalPlanner
 import time
 
+import Object
+
 packed_obj_list = []
 
 
@@ -14,7 +16,16 @@ def algorithm_evaluation():
 
 
 def main():
-    global_planner = GlobalPlanner.GlobalPlanner()
+    # global_planner = GlobalPlanner.GlobalPlanner('ROUGH_WALL')
+    #
+    # ob1 = Object.Object(1, 3, 3)
+    # global_planner.packing_algorithm(ob1, 'NEAREST')
+    #
+    # global_planner.state_representor.draw_potential_points(global_planner.potential_points)
+    #
+    # GlobalPlanner.StateRepresentor.plt.show()
+
+    global_planner = GlobalPlanner.GlobalPlanner('ROUGH_WALL')
 
     idx = 1
     while 1:
@@ -22,8 +33,8 @@ def main():
                                              GlobalPlanner.CURRENT_MAX_HEIGHT)
 
         start_time = time.time()
-        result = global_planner.packing_algorithm(obj, 'NEAREST')
-        # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT')
+        # result = global_planner.packing_algorithm(obj, 'NEAREST')
+        result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT')
         # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT_WIDTH')
         # result = global_planner.packing_algorithm(obj, 'RANDOM')
 
@@ -44,9 +55,10 @@ def main():
             packed_obj_list.append(obj)
             idx += 1
             GlobalPlanner.StateRepresentor.plt.draw()
-            GlobalPlanner.StateRepresentor.plt.pause(0.0000001)
+            GlobalPlanner.StateRepresentor.plt.pause(0.0001)
 
     GlobalPlanner.StateRepresentor.plt.show()
+
 
     # total_result = []
     #

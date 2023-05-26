@@ -8,7 +8,6 @@ import PotentialPoint
 import StateRepresentor
 import Surface
 
-
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
 
@@ -37,7 +36,7 @@ def object_generator(mode, name, max_width, max_height):
 
 
 class GlobalPlanner:
-    def __init__(self):
+    def __init__(self, mode):
 
         self.state_representor = StateRepresentor.StateRepresentor(AISLE_WIDTH, AISLE_DEPTH)
 
@@ -50,8 +49,38 @@ class GlobalPlanner:
         self.right_surface_list = [Surface.Surface(self.right_wall, 0, AISLE_DEPTH, AISLE_WIDTH)]
 
         self.potential_points = []
-
         self.generate_potential_points()
+
+        if mode == 'ROUGH_WALL':
+            self.wall_generator('LEFT')
+            self.wall_generator('RIGHT')
+
+    def wall_generator(self, left_or_right):
+        while 1:
+            if left_or_right == 'LEFT':
+                left_points = [point for point in self.potential_points if
+                               point.parent_surface.surface_object.left_or_right == 'LEFT']
+                if left_points:
+                    frontier_point = max(left_points, key=lambda point: point.y)
+                else:
+                    frontier_point = None
+            elif left_or_right == 'RIGHT':
+                right_points = [point for point in self.potential_points if
+                                point.parent_surface.surface_object.left_or_right == 'RIGHT']
+                if right_points:
+                    frontier_point = max(right_points, key=lambda point: point.y)
+                else:
+                    frontier_point = None
+            else:
+                frontier_point = None
+
+            wall_obj = Object.Object(' ', random.randint(1, 10), random.randint(2, 10))
+            if frontier_point.y + wall_obj.height > AISLE_DEPTH - 1:
+                break
+
+            self.placing(wall_obj, frontier_point, 'WALL')
+            self.update_surface_list(wall_obj, frontier_point)
+            self.generate_potential_points()
 
     # Update surface list when placing target_obj at the target_point
     def update_surface_list(self, target_obj, target_point):
@@ -200,7 +229,7 @@ class GlobalPlanner:
 
         self.potential_points = merged_potential_points[:]
 
-    def placing(self, target_obj, target_point):
+    def placing(self, target_obj, target_point, mode=None):
 
         if target_point.parent_surface.surface_object.left_or_right == 'LEFT':
             target_obj.left_or_right = 'LEFT'
@@ -210,18 +239,18 @@ class GlobalPlanner:
         if target_obj.left_or_right == 'LEFT':
             if target_point.lower_or_upper == 'LOWER':
                 self.state_representor.draw_rectangle(
-                    target_obj.name, target_point.x, target_point.y, target_obj.width, target_obj.height)
+                    target_obj.name, target_point.x, target_point.y, target_obj.width, target_obj.height, mode)
             else:
                 self.state_representor.draw_rectangle(
-                    target_obj.name, target_point.x, target_point.y, target_obj.width, -target_obj.height)
+                    target_obj.name, target_point.x, target_point.y, target_obj.width, -target_obj.height, mode)
 
         elif target_obj.left_or_right == 'RIGHT':
             if target_point.lower_or_upper == 'LOWER':
                 self.state_representor.draw_rectangle(
-                    target_obj.name, target_point.x, target_point.y, -target_obj.width, target_obj.height)
+                    target_obj.name, target_point.x, target_point.y, -target_obj.width, target_obj.height, mode)
             else:
                 self.state_representor.draw_rectangle(
-                    target_obj.name, target_point.x, target_point.y, -target_obj.width, -target_obj.height)
+                    target_obj.name, target_point.x, target_point.y, -target_obj.width, -target_obj.height, mode)
 
     def selecting_point(self, target_obj, mode: str) -> PotentialPoint.PotentialPoint:
 

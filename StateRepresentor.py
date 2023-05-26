@@ -14,14 +14,17 @@ class StateRepresentor:
         self.ax.set_ylabel('Y-axis')
         self.ax.set_title('AISLE')
 
-    def draw_rectangle(self, name, x, y, width, height):
-        rectangle = Rectangle((x, y), width, height, edgecolor='black', facecolor='none')
+    def draw_rectangle(self, name, x, y, width, height, mode=None):
+        if mode == 'WALL':
+            rectangle = Rectangle((x, y), width, height, edgecolor='black', facecolor='black')
+        else:
+            rectangle = Rectangle((x, y), width, height, edgecolor='black', facecolor='none')
         self.ax.add_patch(rectangle)
 
-        # text_x = x + width / 2
-        # text_y = y + height / 2
-        # number = name
-        # self.ax.text(text_x, text_y, str(number), ha='center', va='center')
+        text_x = x + width / 2
+        text_y = y + height / 2
+        number = name
+        self.ax.text(text_x, text_y, str(number), ha='center', va='center')
 
     def draw_potential_points(self, potential_points):
         for point in potential_points:
