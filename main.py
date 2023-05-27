@@ -17,8 +17,9 @@ def algorithm_evaluation(wall_area):
 
 def main():
 
-    global_planner = GlobalPlanner.GlobalPlanner('ROUGH_WALL')
-    # global_planner = GlobalPlanner.GlobalPlanner()
+    # global_planner = GlobalPlanner.GlobalPlanner('ROUGH_WALL')
+    # global_planner = GlobalPlanner.GlobalPlanner('REAL_WALL')
+    global_planner = GlobalPlanner.GlobalPlanner()
 
     wall_area = global_planner.wall_area
 
@@ -28,10 +29,10 @@ def main():
                                              GlobalPlanner.CURRENT_MAX_HEIGHT)
 
         start_time = time.time()
-        result = global_planner.packing_algorithm(obj, 'NEAREST')
-        # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT')
-        # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT_WIDTH')
-        # result = global_planner.packing_algorithm(obj, 'RANDOM')
+        result = global_planner.packing_algorithm(obj, 'NEAREST', 'STRIP_PACKING')
+        # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT', 'STRIP_PACKING')
+        # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT_WIDTH', 'STRIP_PACKING')
+        # result = global_planner.packing_algorithm(obj, 'RANDOM', 'STRIP_PACKING')
 
         end_time = time.time()
 

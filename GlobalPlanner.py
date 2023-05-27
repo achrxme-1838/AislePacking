@@ -20,6 +20,7 @@ CURRENT_MAX_HEIGHT = config['CURRENT_MAX_HEIGHT']
 CURRENT_MIN_WIDTH = config['CURRENT_MIN_WIDTH']
 CURRENT_MIN_HEIGHT = config['CURRENT_MIN_WIDTH']
 
+
 def object_generator(mode, name, max_width, max_height):
     if mode == 'INT':
         return Object.Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
@@ -27,15 +28,15 @@ def object_generator(mode, name, max_width, max_height):
     elif mode == 'FLOAT':
         return Object.Object(name, round(random.uniform(CURRENT_MIN_WIDTH, max_width), 1),
                              round(random.uniform(CURRENT_MIN_HEIGHT, max_height), 1))
-    elif mode == 'STRIP':
-        return Object.Object(name, random.randint(CURRENT_MIN_WIDTH, 5),
-                             random.randint(CURRENT_MIN_HEIGHT, 5))
+    # elif mode == 'STRIP':
+    #     return Object.Object(name, random.randint(CURRENT_MIN_WIDTH, 5),
+    #                          random.randint(CURRENT_MIN_HEIGHT, 5))
     else:
         print('[ERROR] in object generation')
 
 
 class GlobalPlanner:
-    def __init__(self, mode=None):
+    def __init__(self, wall_mode=None):
 
         self.state_representor = StateRepresentor.StateRepresentor(AISLE_WIDTH, AISLE_DEPTH)
 
@@ -52,11 +53,14 @@ class GlobalPlanner:
 
         self.wall_area = 0
 
-        if mode == 'ROUGH_WALL':
-            self.wall_generator('LEFT')
-            self.wall_generator('RIGHT')
+        if wall_mode == 'ROUGH_WALL':
+            self.wall_generator('LEFT', wall_mode)
+            self.wall_generator('RIGHT', wall_mode)
+        elif wall_mode == 'REAL_WALL':
+            self.wall_generator('LEFT', wall_mode)
+            self.wall_generator('RIGHT', wall_mode)
 
-    def wall_generator(self, left_or_right):
+    def wall_generator(self, left_or_right, wall_mode):
 
         default_width = 2
 
@@ -78,14 +82,18 @@ class GlobalPlanner:
             else:
                 frontier_point = None
 
-            wall_obj = Object.Object(' ', random.randint(0, 7), random.randint(1, 10))
-            # increment = random.choice([-1, 0, 1])
-            # default_width += increment
-            # if default_width <= 0:
-            #     default_width = 1
-            # if default_width >= AISLE_WIDTH / 2:
-            #     default_width = AISLE_WIDTH / 2
-            # wall_obj = Object.Object(' ', default_width, AISLE_DEPTH/200)
+            if wall_mode == 'ROUGH_WALL':
+                wall_obj = Object.Object(' ', random.randint(0, 7), random.randint(1, 10))
+            elif wall_mode == 'REAL_WALL':
+                increment = random.choice([-0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5])
+                default_width += increment
+                if default_width <= 0:
+                    default_width = 1
+                if default_width >= AISLE_WIDTH / 2:
+                    default_width = AISLE_WIDTH / 2
+                wall_obj = Object.Object('', default_width, AISLE_DEPTH / 500)
+            else:
+                wall_obj = None
 
             if frontier_point.y + wall_obj.height >= AISLE_DEPTH:
                 self.placing(wall_obj, frontier_point, 'WALL')
@@ -270,9 +278,9 @@ class GlobalPlanner:
                 self.state_representor.draw_rectangle(
                     target_obj.name, target_point.x, target_point.y, -target_obj.width, -target_obj.height, mode)
 
-    def selecting_point(self, target_obj, mode: str) -> PotentialPoint.PotentialPoint:
+    def selecting_point(self, target_obj, mode: str, filtering_mode=None) -> PotentialPoint.PotentialPoint:
 
-        filtered_point_list = self.filtering_point(target_obj)
+        filtered_point_list = self.filtering_point(target_obj, filtering_mode)
         if filtered_point_list == 'Fail':
             return 'Fail'
 
@@ -296,7 +304,7 @@ class GlobalPlanner:
 
             return selected_point
 
-    def filtering_point(self, target_obj) -> list[FreeDistance.FreeDistance]:
+    def filtering_point(self, target_obj, mode=None) -> list[FreeDistance.FreeDistance]:
 
         free_distance_list = []  # O(1)
 
@@ -309,8 +317,13 @@ class GlobalPlanner:
         copied_free_distance_list = free_distance_list[:]  # O(n)
         free_distance_list.clear()  # O(n)
         for free_distance in copied_free_distance_list:  # O(n)
-            if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
-                free_distance_list.append(free_distance)
+
+            if mode == 'STRIP_PACKING':
+                if free_distance.free_height >= 0 and free_distance.free_width > 0:
+                    free_distance_list.append(free_distance)
+            else:
+                if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
+                    free_distance_list.append(free_distance)
 
         if free_distance_list:
             return free_distance_list
@@ -326,8 +339,13 @@ class GlobalPlanner:
             copied_free_distance_list = free_distance_list[:]
             free_distance_list.clear()
             for free_distance in copied_free_distance_list:
-                if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
-                    free_distance_list.append(free_distance)
+
+                if mode == 'STRIP_PACKING':
+                    if free_distance.free_height >= 0 and free_distance.free_width > 0:
+                        free_distance_list.append(free_distance)
+                else:
+                    if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
+                        free_distance_list.append(free_distance)
 
             if free_distance_list:
                 return free_distance_list
@@ -335,9 +353,9 @@ class GlobalPlanner:
                 print("There is no point which can be packed")
                 return 'Fail'
 
-    def packing_algorithm(self, target_obj, mode):  # target_obj = N
+    def packing_algorithm(self, target_obj, selecting_mode, filtering_mode=None):  # target_obj = N
 
-        target_point = self.selecting_point(target_obj, mode)  # O(n^2)
+        target_point = self.selecting_point(target_obj, selecting_mode, filtering_mode)  # O(n^2)
 
         if target_point == 'Fail':
             return 'Fail'
