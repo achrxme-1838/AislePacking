@@ -3,7 +3,7 @@ import random
 import yaml
 
 import Object
-import FreeDistance
+import DistanceMargin
 import PotentialPoint
 import StateRepresentor
 import Surface
@@ -304,51 +304,52 @@ class GlobalPlanner:
 
             return selected_point
 
-    def filtering_point(self, target_obj, mode=None) -> list[FreeDistance.FreeDistance]:
+    def filtering_point(self, target_obj, mode=None) -> list[DistanceMargin.DistanceMargin]:
 
-        free_distance_list = []  # O(1)
+        distance_margin_list = []  # O(1)
 
         # O(n^2)
         for point in self.potential_points:  # O(n)
-            free_width, free_height = point.free_distance_calculator(  # O(n)
+            width_margin, height_margin = point.distance_margin_calculator(  # O(n)
                 target_obj, self.left_surface_list, self.right_surface_list)
-            free_distance_list.append(FreeDistance.FreeDistance(point, free_width, free_height))
+            distance_margin_list.append(DistanceMargin.DistanceMargin(point, width_margin, height_margin))
 
-        copied_free_distance_list = free_distance_list[:]  # O(n)
-        free_distance_list.clear()  # O(n)
-        for free_distance in copied_free_distance_list:  # O(n)
+        copied_distance_margin_list = distance_margin_list[:]  # O(n)
+        distance_margin_list.clear()  # O(n)
+        for distance_margin in copied_distance_margin_list:  # O(n)
 
             if mode == 'STRIP_PACKING':
-                if free_distance.free_height >= 0 and free_distance.free_width > 0:
-                    free_distance_list.append(free_distance)
+                if distance_margin.height_margin >= 0 and distance_margin.width_margin > 0:
+                    distance_margin_list.append(distance_margin)
             else:
-                if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
-                    free_distance_list.append(free_distance)
+                if distance_margin.height_margin >= 0 and distance_margin.width_margin - CURRENT_MAX_WIDTH > 0:
+                    distance_margin_list.append(distance_margin)
 
-        if free_distance_list:
-            return free_distance_list
+        if distance_margin_list:
+            return distance_margin_list
 
         else:
             # When there is no point can be packed
             print("try urgent placing, called with", target_obj)
             for point in self.potential_points:  # O(n)
-                urgent_free_width, urgent_free_height = point.urgent_free_distance_calculator(  # O(n)
+                urgent_width_margin, urgent_height_margin = point.urgent_distance_margin_calculator(  # O(n)
                     target_obj, self.left_surface_list, self.right_surface_list)
-                free_distance_list.append(FreeDistance.FreeDistance(point, urgent_free_width, urgent_free_height))
+                distance_margin_list.append(
+                    DistanceMargin.DistanceMargin(point, urgent_width_margin, urgent_height_margin))
 
-            copied_free_distance_list = free_distance_list[:]
-            free_distance_list.clear()
-            for free_distance in copied_free_distance_list:
+            copied_distance_margin_list = distance_margin_list[:]
+            distance_margin_list.clear()
+            for distance_margin in copied_distance_margin_list:
 
                 if mode == 'STRIP_PACKING':
-                    if free_distance.free_height >= 0 and free_distance.free_width > 0:
-                        free_distance_list.append(free_distance)
+                    if distance_margin.height_margin >= 0 and distance_margin.width_margin> 0:
+                        distance_margin_list.append(distance_margin)
                 else:
-                    if free_distance.free_height >= 0 and free_distance.free_width - CURRENT_MAX_WIDTH > 0:
-                        free_distance_list.append(free_distance)
+                    if distance_margin.height_margin >= 0 and distance_margin.width_margin - CURRENT_MAX_WIDTH > 0:
+                        distance_margin_list.append(distance_margin)
 
-            if free_distance_list:
-                return free_distance_list
+            if distance_margin_list:
+                return distance_margin_list
             else:
                 print("There is no point which can be packed")
                 return 'Fail'

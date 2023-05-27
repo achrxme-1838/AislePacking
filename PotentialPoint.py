@@ -48,40 +48,41 @@ class PotentialPoint:
                     self.counter_surface_set.append(counter_surface)
 
     # calculate left_distance after we place target at that specific point
-    def free_distance_calculator(self, target_obj, left_surface_list, right_surface_list):  # O(n)
+    def distance_margin_calculator(self, target_obj, left_surface_list, right_surface_list):  # O(n)
 
-        free_width = 0
-        free_height = self.parent_surface.upper_bound - self.parent_surface.lower_bound
+        width_margin = 0
+        height_margin = self.parent_surface.upper_bound - self.parent_surface.lower_bound
 
         if self.base_obj.left_or_right == 'LEFT':
             self.counter_finder(target_obj, right_surface_list)  # O(n)
             current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x  # O(n)
-            free_width = current_most_inner - self.x
+            width_margin = current_most_inner - self.x
 
         elif self.base_obj.left_or_right == 'RIGHT':
             self.counter_finder(target_obj, left_surface_list)
             current_most_inner = max(self.counter_surface_set, key=lambda counter: counter.x).x
-            free_width = self.x - current_most_inner
+            width_margin = self.x - current_most_inner
 
-        self.width_left = free_width - target_obj.width
-        self.height_left = free_height - target_obj.height
+        self.width_left = width_margin - target_obj.width
+        self.height_left = height_margin - target_obj.height
 
         return self.width_left, self.height_left
 
-    def urgent_free_distance_calculator(self, target_obj, left_surface_list, right_surface_list):
+    def urgent_distance_margin_calculator(self, target_obj, left_surface_list, right_surface_list):
 
-        free_width = 0
-        free_height = 0
+        width_margin = 0
+        height_margin = 0
+
 
         if self.base_obj.left_or_right == 'LEFT':
             self.counter_finder(target_obj, right_surface_list)
             current_most_inner = min(self.counter_surface_set, key=lambda counter: counter.x).x
-            free_width = current_most_inner - self.x
+            width_margin = current_most_inner - self.x
 
             vertical_line = self.x
             surface_index = left_surface_list.index(self.parent_surface)
             while left_surface_list[surface_index].x <= vertical_line:
-                free_height += left_surface_list[surface_index].upper_bound \
+                height_margin += left_surface_list[surface_index].upper_bound \
                                - left_surface_list[surface_index].lower_bound
                 if self.lower_or_upper == 'LOWER':
                     surface_index += 1
@@ -94,12 +95,12 @@ class PotentialPoint:
         elif self.base_obj.left_or_right == 'RIGHT':
             self.counter_finder(target_obj, left_surface_list)
             current_most_inner = max(self.counter_surface_set, key=lambda counter: counter.x).x
-            free_width = self.x - current_most_inner
+            width_margin = self.x - current_most_inner
 
             vertical_line = self.x
             surface_index = right_surface_list.index(self.parent_surface)
             while right_surface_list[surface_index].x >= vertical_line:
-                free_height += right_surface_list[surface_index].upper_bound \
+                height_margin += right_surface_list[surface_index].upper_bound \
                                - right_surface_list[surface_index].lower_bound
                 if self.lower_or_upper == 'LOWER':
                     surface_index += 1
@@ -109,8 +110,8 @@ class PotentialPoint:
                 if surface_index >= len(right_surface_list) or surface_index < 0:
                     break
 
-        self.width_left = free_width - target_obj.width
-        self.height_left = free_height - target_obj.height
+        self.width_left = width_margin - target_obj.width
+        self.height_left = height_margin - target_obj.height
 
         return self.width_left, self.height_left
 
