@@ -6,8 +6,8 @@ import Object
 packed_obj_list = []
 
 
-def algorithm_evaluation():
-    aisle_area = GlobalPlanner.AISLE_DEPTH * (GlobalPlanner.AISLE_WIDTH - GlobalPlanner.CURRENT_MAX_WIDTH)
+def algorithm_evaluation(wall_area):
+    aisle_area = GlobalPlanner.AISLE_DEPTH * (GlobalPlanner.AISLE_WIDTH - GlobalPlanner.CURRENT_MAX_WIDTH) - wall_area
     packed_area = 0
     for obj in packed_obj_list:
         packed_area += obj.width * obj.height
@@ -16,25 +16,20 @@ def algorithm_evaluation():
 
 
 def main():
-    # global_planner = GlobalPlanner.GlobalPlanner('ROUGH_WALL')
-    #
-    # ob1 = Object.Object(1, 3, 3)
-    # global_planner.packing_algorithm(ob1, 'NEAREST')
-    #
-    # global_planner.state_representor.draw_potential_points(global_planner.potential_points)
-    #
-    # GlobalPlanner.StateRepresentor.plt.show()
 
     global_planner = GlobalPlanner.GlobalPlanner('ROUGH_WALL')
+    # global_planner = GlobalPlanner.GlobalPlanner()
+
+    wall_area = global_planner.wall_area
 
     idx = 1
     while 1:
-        obj = GlobalPlanner.object_generator('INT', idx, GlobalPlanner.CURRENT_MAX_WIDTH,
+        obj = GlobalPlanner.object_generator('FLOAT', idx, GlobalPlanner.CURRENT_MAX_WIDTH,
                                              GlobalPlanner.CURRENT_MAX_HEIGHT)
 
         start_time = time.time()
-        # result = global_planner.packing_algorithm(obj, 'NEAREST')
-        result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT')
+        result = global_planner.packing_algorithm(obj, 'NEAREST')
+        # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT')
         # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT_WIDTH')
         # result = global_planner.packing_algorithm(obj, 'RANDOM')
 
@@ -47,7 +42,7 @@ def main():
             print('Successfully packed ', idx - 1, ' objects')
             print('Cannot packing', obj)
 
-            print(algorithm_evaluation())
+            print(algorithm_evaluation(wall_area))
 
             break
         else:
@@ -62,21 +57,22 @@ def main():
 
     # total_result = []
     #
-    # for i in range(100):
-    #     global_planner = GlobalPlanner()
+    # for i in range(10):
+    #     global_planner = GlobalPlanner.GlobalPlanner('ROUGH_WALL')
     #
     #     idx = 1
     #     while 1:
-    #         obj = object_generator('FLOAT', idx, CURRENT_MAX_WIDTH, CURRENT_MAX_HEIGHT)
-    #         # result = global_planner.packing_algorithm(obj, 'NEAREST')
-    #         result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT')
+    #         obj = GlobalPlanner.object_generator('FLOAT', idx, GlobalPlanner.CURRENT_MAX_WIDTH,
+    #                                              GlobalPlanner.CURRENT_MAX_HEIGHT)
+    #         result = global_planner.packing_algorithm(obj, 'NEAREST')
+    #         # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT')
     #         # result = global_planner.packing_algorithm(obj, 'MIN_HEIGHT_WIDTH')
     #         # result = global_planner.packing_algorithm(obj, 'RANDOM')
     #
     #         if result == 'Fail':
     #             print("END", i)
     #             # print(algorithm_evaluation())
-    #             total_result.append(algorithm_evaluation())
+    #             total_result.append(algorithm_evaluation(global_planner.wall_area))
     #             packed_obj_list.clear()
     #             break
     #         else:

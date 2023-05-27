@@ -20,7 +20,6 @@ CURRENT_MAX_HEIGHT = config['CURRENT_MAX_HEIGHT']
 CURRENT_MIN_WIDTH = config['CURRENT_MIN_WIDTH']
 CURRENT_MIN_HEIGHT = config['CURRENT_MIN_WIDTH']
 
-
 def object_generator(mode, name, max_width, max_height):
     if mode == 'INT':
         return Object.Object(name, random.randint(CURRENT_MIN_WIDTH, max_width),
@@ -36,7 +35,7 @@ def object_generator(mode, name, max_width, max_height):
 
 
 class GlobalPlanner:
-    def __init__(self, mode):
+    def __init__(self, mode=None):
 
         self.state_representor = StateRepresentor.StateRepresentor(AISLE_WIDTH, AISLE_DEPTH)
 
@@ -51,11 +50,16 @@ class GlobalPlanner:
         self.potential_points = []
         self.generate_potential_points()
 
+        self.wall_area = 0
+
         if mode == 'ROUGH_WALL':
             self.wall_generator('LEFT')
             self.wall_generator('RIGHT')
 
     def wall_generator(self, left_or_right):
+
+        default_width = 2
+
         while 1:
             if left_or_right == 'LEFT':
                 left_points = [point for point in self.potential_points if
@@ -74,13 +78,27 @@ class GlobalPlanner:
             else:
                 frontier_point = None
 
-            wall_obj = Object.Object(' ', random.randint(1, 10), random.randint(2, 10))
-            if frontier_point.y + wall_obj.height > AISLE_DEPTH - 1:
+            wall_obj = Object.Object(' ', random.randint(0, 7), random.randint(1, 10))
+            # increment = random.choice([-1, 0, 1])
+            # default_width += increment
+            # if default_width <= 0:
+            #     default_width = 1
+            # if default_width >= AISLE_WIDTH / 2:
+            #     default_width = AISLE_WIDTH / 2
+            # wall_obj = Object.Object(' ', default_width, AISLE_DEPTH/200)
+
+            if frontier_point.y + wall_obj.height >= AISLE_DEPTH:
+                self.placing(wall_obj, frontier_point, 'WALL')
+                self.wall_area += wall_obj.height * wall_obj.width
+                self.update_surface_list(wall_obj, frontier_point)
+                self.generate_potential_points()
                 break
 
-            self.placing(wall_obj, frontier_point, 'WALL')
-            self.update_surface_list(wall_obj, frontier_point)
-            self.generate_potential_points()
+            else:
+                self.placing(wall_obj, frontier_point, 'WALL')
+                self.wall_area += wall_obj.height * wall_obj.width
+                self.update_surface_list(wall_obj, frontier_point)
+                self.generate_potential_points()
 
     # Update surface list when placing target_obj at the target_point
     def update_surface_list(self, target_obj, target_point):
